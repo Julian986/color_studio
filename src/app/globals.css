@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+:root {
+  --background: #111111;
+  --foreground: #ffffff;
+  --soft-gray: #9797a0;
+  --premium-gold: #e4ca69;
+  --accent-coral: #b64b54;
+  --accent-orange: #ce7832;
+  /* Texto sobre botones rellenos en tono dorado */
+  --on-accent: #1f1814;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-soft-gray: var(--soft-gray);
+  --color-premium-gold: var(--premium-gold);
+  --color-accent-coral: var(--accent-coral);
+  --color-accent-orange: var(--accent-orange);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-montserrat), sans-serif;
+}
+
+.font-heading {
+  font-family: var(--font-playfair), serif;
+}
