@@ -24,6 +24,11 @@ const COLLECTION = "reservations";
 
 export type ReprogramDayRow =
   | { timeLocal: string; kind: "available" }
+  | {
+      timeLocal: string;
+      kind: "overlay_available";
+      overlaps: { customerName: string; treatmentName: string }[];
+    }
   | { timeLocal: string; kind: "reserved"; customerName: string; treatmentName: string }
   | { timeLocal: string; kind: "agenda_block"; scope: string; notes: string | null }
   | { timeLocal: string; kind: "capacity_full" };
@@ -132,14 +137,26 @@ export async function computeReprogramDayRows(
       continue;
     }
 
-    const hitRes = resLabeled.find((r) => intervalsOverlap(slot, r.interval));
-    if (hitRes) {
-      rows.push({
-        timeLocal: t,
-        kind: "reserved",
-        customerName: hitRes.customerName,
-        treatmentName: hitRes.treatmentName,
-      });
+    const overlapping = resLabeled.filter((r) => intervalsOverlap(slot, r.interval));
+    if (overlapping.length > 0) {
+      if (scope === "panel") {
+        rows.push({
+          timeLocal: t,
+          kind: "overlay_available",
+          overlaps: overlapping.map((r) => ({
+            customerName: r.customerName,
+            treatmentName: r.treatmentName,
+          })),
+        });
+      } else {
+        const hitRes = overlapping[0];
+        rows.push({
+          timeLocal: t,
+          kind: "reserved",
+          customerName: hitRes.customerName,
+          treatmentName: hitRes.treatmentName,
+        });
+      }
       continue;
     }
 

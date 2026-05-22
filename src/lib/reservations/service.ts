@@ -11,7 +11,8 @@ import {
 import { formatSalonDisplayDate } from "@/lib/booking/salon-availability";
 import { canonicalPhoneDigitsAR, customerPhoneDigitsQueryValues } from "@/lib/customer/phone-canonical-ar";
 import { isPublicLeadTimeViolated } from "@/lib/booking/public-slot-lead";
-import { reservationWouldExceedSalonCapacity, slotIntervalMs } from "@/lib/booking/slot-overlap";
+import { enforceSalonCapacityForScope } from "@/lib/booking/booking-capacity";
+import { canPlaceReservationSlot, reservationWouldExceedSalonCapacity, slotIntervalMs } from "@/lib/booking/slot-overlap";
 import {
   findSalonTreatmentById,
   isValidServiceSelection,
@@ -364,9 +365,7 @@ export type PanelReservationInsertInput = {
 
 const PANEL_NOTES_MAX_LEN = 2000;
 
-/**
- * Alta manual desde el panel (sin Mercado Pago). Valida cupos (9–11:30: hasta 3 turnos solapados).
- */
+/** Alta manual desde el panel (sin Mercado Pago). Permite turnos encimados; bloqueos de agenda sí aplican. */
 export async function insertPanelReservation(
   db: Db,
   input: PanelReservationInsertInput,
@@ -432,10 +431,10 @@ export async function insertPanelReservation(
     return { error: "Fecha u horario inválidos.", code: "INVALID_SLOT" };
   }
   const capGetterPanel = await buildCapGetterForDate(db, dateKey);
-  if (await reservationWouldExceedSalonCapacity(db, dateKey, interval, capGetterPanel)) {
+  if (!canPlaceReservationSlot(dateKey, interval, [], capGetterPanel)) {
     return {
-      error: "Ese horario ya no tiene cupo en esa franja. Elegí otro.",
-      code: "SLOT_OVERLAP",
+      error: "Ese horario cae en un bloqueo de agenda.",
+      code: "SLOT_UNAVAILABLE",
     };
   }
 
@@ -614,10 +613,17 @@ export async function rescheduleReservation(
     return { error: "Fecha u horario inválidos.", code: "INVALID_SLOT" };
   }
   const capGetter = await buildCapGetterForDate(db, newKey);
-  if (await reservationWouldExceedSalonCapacity(db, newKey, interval, capGetter, excludeOid)) {
+  if (enforceSalonCapacityForScope(slotScope)) {
+    if (await reservationWouldExceedSalonCapacity(db, newKey, interval, capGetter, excludeOid)) {
+      return {
+        error: "Ese horario ya no está disponible (cupos llenos en esa franja).",
+        code: "SLOT_OVERLAP",
+      };
+    }
+  } else if (!canPlaceReservationSlot(newKey, interval, [], capGetter)) {
     return {
-      error: "Ese horario ya no está disponible (cupos llenos en esa franja).",
-      code: "SLOT_OVERLAP",
+      error: "Ese horario cae en un bloqueo de agenda.",
+      code: "SLOT_UNAVAILABLE",
     };
   }
 

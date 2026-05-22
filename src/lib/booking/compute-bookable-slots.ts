@@ -9,6 +9,7 @@ import {
 } from "@/lib/booking/salon-availability";
 import { getPublicBookableTimeSlots } from "@/lib/booking/public-slot-lead";
 import { filterPublicSlotsByTreatmentRules } from "@/lib/booking/treatment-slot-rules";
+import { enforceSalonCapacityForScope } from "@/lib/booking/booking-capacity";
 import { filterSlotsBySalonCapacity, loadBusyIntervalsMs } from "@/lib/booking/slot-overlap";
 import { findSalonTreatmentById } from "@/lib/treatments/catalog";
 
@@ -52,8 +53,10 @@ export async function computeBookableSlots(
     getLastServiceEndMinutesForDate(params.dateKey),
   );
   slots = filterPublicSlotsByTreatmentRules(treatment.id, slots, params.dateKey);
-  const busy = await loadBusyIntervalsMs(db, params.dateKey, excludeId);
   const capGetter = await buildCapGetterForDate(db, params.dateKey);
+  const busy = enforceSalonCapacityForScope(params.scope)
+    ? await loadBusyIntervalsMs(db, params.dateKey, excludeId)
+    : [];
   return filterSlotsBySalonCapacity(slots, params.dateKey, treatment.durationMinutes, busy, capGetter);
 }
 
@@ -100,7 +103,9 @@ export async function computeBookableSlotsForTreatmentIds(
   for (const t of treatments) {
     slots = filterPublicSlotsByTreatmentRules(t.id, slots, params.dateKey);
   }
-  const busy = await loadBusyIntervalsMs(db, params.dateKey, excludeId);
   const capGetter = await buildCapGetterForDate(db, params.dateKey);
+  const busy = enforceSalonCapacityForScope(params.scope)
+    ? await loadBusyIntervalsMs(db, params.dateKey, excludeId)
+    : [];
   return filterSlotsBySalonCapacity(slots, params.dateKey, totalDuration, busy, capGetter);
 }

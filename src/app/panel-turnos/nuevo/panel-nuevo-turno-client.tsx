@@ -11,6 +11,7 @@ import {
   formatSalonDisplayDate,
   isLikelyWhatsappNumber,
 } from "@/lib/booking/salon-availability";
+import type { PanelSlotOverlapHit } from "@/lib/booking/slot-overlap";
 import {
   normalizeServiceIds,
   primaryTreatmentIdFromServiceIds,
@@ -30,6 +31,7 @@ export function PanelNuevoTurnoClient() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [remoteSlots, setRemoteSlots] = useState<string[] | null | undefined>(undefined);
+  const [panelSlotOverlaps, setPanelSlotOverlaps] = useState<Record<string, PanelSlotOverlapHit[]>>({});
   const bookingFocusRef = useRef<HTMLDivElement | null>(null);
 
   const selectedTreatment = useMemo(
@@ -49,6 +51,7 @@ export function PanelNuevoTurnoClient() {
   useEffect(() => {
     if (!selectedDate || selectedServiceIds.length === 0) {
       setRemoteSlots(undefined);
+      setPanelSlotOverlaps({});
       return;
     }
     let cancelled = false;
@@ -61,13 +64,17 @@ export function PanelNuevoTurnoClient() {
     });
     fetch(`/api/booking/slots?${q.toString()}`, { credentials: "same-origin" })
       .then((res) => res.json())
-      .then((data: { slots?: string[] }) => {
+      .then((data: { slots?: string[]; overlaps?: Record<string, PanelSlotOverlapHit[]> }) => {
         if (!cancelled) {
           setRemoteSlots(Array.isArray(data.slots) ? data.slots : []);
+          setPanelSlotOverlaps(data.overlaps && typeof data.overlaps === "object" ? data.overlaps : {});
         }
       })
       .catch(() => {
-        if (!cancelled) setRemoteSlots([]);
+        if (!cancelled) {
+          setRemoteSlots([]);
+          setPanelSlotOverlaps({});
+        }
       });
     return () => {
       cancelled = true;
@@ -153,6 +160,7 @@ export function PanelNuevoTurnoClient() {
             selectedDate && selectedServiceIds.length > 0 ? (remoteSlots ?? null) : undefined
           }
           monthAvailabilityServiceIds={selectedServiceIds}
+          panelSlotOverlaps={panelSlotOverlaps}
           bookingFocusRef={bookingFocusRef}
           treatmentFirstHintVisible={treatmentFirstHintVisible}
           onTreatmentFirstHintVisible={setTreatmentFirstHintVisible}

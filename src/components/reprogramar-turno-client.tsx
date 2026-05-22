@@ -502,7 +502,11 @@ export function ReprogramarTurnoClient({
             ) : (
               <ul className="flex flex-col gap-2">
                 {slotRows.map((row) => {
-                  if (row.kind === "available") {
+                  if (row.kind === "available" || row.kind === "overlay_available") {
+                    const isOverlay = row.kind === "overlay_available";
+                    const overlapLabel = isOverlay
+                      ? row.overlaps.map((h) => `${h.customerName} · ${h.treatmentName}`).join("; ")
+                      : "";
                     return (
                       <li key={row.timeLocal}>
                         <button
@@ -511,12 +515,25 @@ export function ReprogramarTurnoClient({
                           className={[
                             "w-full cursor-pointer rounded-xl border px-3.5 py-2.5 text-left text-[13px] font-semibold transition",
                             timeLocal === row.timeLocal
-                              ? "border-[var(--premium-gold)] bg-[var(--premium-gold)]/18 text-[var(--premium-gold)]"
-                              : "border-white/12 bg-[#171717] text-[var(--soft-gray)]/88 hover:border-white/20",
+                              ? isOverlay
+                                ? "border-amber-400 bg-amber-950/30 text-amber-100"
+                                : "border-[var(--premium-gold)] bg-[var(--premium-gold)]/18 text-[var(--premium-gold)]"
+                              : isOverlay
+                                ? "border-amber-500/50 border-dashed bg-[#1a1814] text-amber-100/90 hover:border-amber-400/60"
+                                : "border-white/12 bg-[#171717] text-[var(--soft-gray)]/88 hover:border-white/20",
                           ].join(" ")}
                         >
                           <span className="font-mono tabular-nums">{row.timeLocal}</span>
-                          <span className="ml-2 text-[12px] font-medium text-emerald-300/90">Disponible</span>
+                          <span
+                            className={`ml-2 text-[12px] font-medium ${isOverlay ? "text-amber-300/90" : "text-emerald-300/90"}`}
+                          >
+                            {isOverlay ? "Encimado" : "Disponible"}
+                          </span>
+                          {isOverlay ? (
+                            <span className="mt-1 block text-[12px] font-normal leading-snug text-amber-100/75">
+                              Coincide con: {overlapLabel}
+                            </span>
+                          ) : null}
                         </button>
                       </li>
                     );

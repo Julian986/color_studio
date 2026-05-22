@@ -19,6 +19,7 @@ import {
   normalizeServiceIds,
   primaryTreatmentIdFromServiceIds,
 } from "@/lib/treatments/catalog";
+import type { PanelSlotOverlapHit } from "@/lib/booking/slot-overlap";
 
 export type BookingPickerProps = {
   selectedTreatmentId: string;
@@ -53,6 +54,8 @@ export type BookingPickerProps = {
   /** Varios servicios en la misma visita (turnos públicos y panel). */
   selectedServiceIds?: string[];
   onServiceIdsChange?: (ids: string[]) => void;
+  /** Solo panel: turnos que se superponen con otros (avisos visuales). */
+  panelSlotOverlaps?: Record<string, PanelSlotOverlapHit[]>;
 };
 
 export function BookingPicker({
@@ -81,6 +84,7 @@ export function BookingPicker({
   comboAlertText,
   selectedServiceIds = [],
   onServiceIdsChange,
+  panelSlotOverlaps = {},
 }: BookingPickerProps) {
   const multiService = Boolean(onServiceIdsChange);
   const effectiveServiceIds = multiService
@@ -190,6 +194,8 @@ export function BookingPicker({
         : getAvailableTimesForDate(selectedDate)
     : [];
   const isSelectedDateHoliday = Boolean(selectedDate && isArgentinaPublicHoliday(selectedDate));
+  const selectedOverlapHits = selectedTime ? (panelSlotOverlaps[selectedTime] ?? []) : [];
+  const hasSelectedOverlap = bookingContext === "panel" && selectedOverlapHits.length > 0;
 
   const activeStep = !hasServiceSelection
     ? 1
@@ -330,6 +336,12 @@ export function BookingPicker({
           </button>
         </div>
 
+        {bookingContext === "panel" && hasServiceSelection ? (
+          <p className="mb-2 text-center text-[10px] leading-relaxed text-amber-200/75">
+            En el panel podés cargar turnos encimados. Los horarios con punto ámbar coinciden con otro turno.
+          </p>
+        ) : null}
+
         {treatmentFirstHintVisible ? (
           <p
             role="status"
@@ -438,6 +450,13 @@ export function BookingPicker({
                   <span>Seleccioná un horario para continuar</span>
                 </div>
               )}
+              {hasSelectedOverlap ? (
+                <p className="mt-2 rounded-xl border border-amber-500/40 bg-amber-950/25 px-3 py-2 text-[11px] leading-snug text-amber-100/92">
+                  Turno encimado: coincide con{" "}
+                  {selectedOverlapHits.map((h) => `${h.customerName} (${h.treatmentName})`).join(", ")}.
+                  Solo vos podés cargarlo desde el panel.
+                </p>
+              ) : null}
             </div>
             <ChevronRight className="h-4 w-4 text-[var(--soft-gray)]/60" strokeWidth={1.8} />
           </div>
@@ -450,18 +469,32 @@ export function BookingPicker({
             ) : availableTimes.length > 0 ? (
               availableTimes.map((time) => {
                 const isActive = time === selectedTime;
+                const overlapHits = bookingContext === "panel" ? panelSlotOverlaps[time] : undefined;
+                const hasOverlap = Boolean(overlapHits && overlapHits.length > 0);
                 return (
                   <button
                     key={time}
                     type="button"
+                    title={
+                      hasOverlap
+                        ? `Encima de: ${overlapHits!.map((h) => `${h.customerName} · ${h.treatmentName}`).join("; ")}`
+                        : undefined
+                    }
                     onClick={() => onTimeChange(time)}
-                    className={`h-11 cursor-pointer rounded-xl border text-[16px] transition-colors ${
+                    className={`relative h-11 cursor-pointer rounded-xl border text-[16px] transition-colors ${
                       isActive
-                        ? "border-[var(--premium-gold)] bg-[rgba(206,120,50,0.14)] text-[var(--premium-gold)]"
-                        : "border-white/8 bg-[#151515] text-[var(--soft-gray)]"
+                        ? hasOverlap
+                          ? "border-amber-400 bg-[rgba(245,158,11,0.18)] text-amber-100"
+                          : "border-[var(--premium-gold)] bg-[rgba(206,120,50,0.14)] text-[var(--premium-gold)]"
+                        : hasOverlap
+                          ? "border-amber-500/55 border-dashed bg-[#1a1814] text-amber-100/90"
+                          : "border-white/8 bg-[#151515] text-[var(--soft-gray)]"
                     }`}
                   >
-                    {time}
+                    <span>{time}</span>
+                    {hasOverlap ? (
+                      <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-400" aria-hidden />
+                    ) : null}
                   </button>
                 );
               })

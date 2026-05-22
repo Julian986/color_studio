@@ -1,12 +1,12 @@
 ﻿import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
 
 import { computeBookableSlots, computeBookableSlotsForTreatmentIds } from "@/lib/booking/compute-bookable-slots";
+import { buildPanelSlotOverlapMap } from "@/lib/booking/slot-overlap";
 import { getDb } from "@/lib/mongodb";
 import { verifyPanelCookie } from "@/lib/panel-turnos-auth";
-import { isValidServiceSelection } from "@/lib/treatments/catalog";
-import { findSalonTreatmentById } from "@/lib/treatments/catalog";
-
+import { findSalonTreatmentById, isValidServiceSelection } from "@/lib/treatments/catalog";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
@@ -55,6 +55,7 @@ export async function GET(request: Request) {
 
   try {
     const db = await getDb();
+    const excludeHex = scope === "panel" ? excludeReservationHexId || undefined : undefined;
     const slots =
       serviceIds.length > 0
         ? await computeBookableSlotsForTreatmentIds(db, {
@@ -62,16 +63,42 @@ export async function GET(request: Request) {
             treatmentIds: serviceIds,
             now: new Date(),
             scope,
-            excludeReservationHexId: scope === "panel" ? excludeReservationHexId || undefined : undefined,
+            excludeReservationHexId: excludeHex,
           })
         : await computeBookableSlots(db, {
             dateKey,
             treatmentId,
             now: new Date(),
             scope,
-            excludeReservationHexId: scope === "panel" ? excludeReservationHexId || undefined : undefined,
+            excludeReservationHexId: excludeHex,
           });
-    return NextResponse.json({ slots });
+
+    if (scope !== "panel") {
+      return NextResponse.json({ slots });
+    }
+
+    const durationMinutes =
+      serviceIds.length > 0
+        ? serviceIds.reduce((acc, id) => acc + (findSalonTreatmentById(id)?.durationMinutes ?? 0), 0)
+        : (findSalonTreatmentById(treatmentId)?.durationMinutes ?? 60);
+
+    let excludeOid: ObjectId | undefined;
+    if (excludeHex && /^[a-f0-9]{24}$/i.test(excludeHex)) {
+      try {
+        excludeOid = new ObjectId(excludeHex);
+      } catch {
+        excludeOid = undefined;
+      }
+    }
+
+    const overlaps = await buildPanelSlotOverlapMap(db, {
+      dateKey,
+      durationMinutes,
+      slots,
+      excludeReservationId: excludeOid,
+    });
+
+    return NextResponse.json({ slots, overlaps });
   } catch (e) {
     console.error("[api/booking/slots]", e);
     return NextResponse.json({ error: "No se pudieron cargar los horarios." }, { status: 500 });

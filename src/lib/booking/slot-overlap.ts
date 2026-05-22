@@ -154,3 +154,62 @@ export async function reservationWouldExceedSalonCapacity(
   const busy = await loadBusyIntervalsMs(db, dateKey, excludeReservationId);
   return !canPlaceReservationSlot(dateKey, candidate, busy, getEffectiveCap);
 }
+
+export type PanelSlotOverlapHit = {
+  customerName: string;
+  treatmentName: string;
+};
+
+/** Turnos confirmados que se superponen con cada inicio (solo panel / aviso visual). */
+export async function buildPanelSlotOverlapMap(
+  db: Db,
+  params: {
+    dateKey: string;
+    durationMinutes: number;
+    slots: string[];
+    excludeReservationId?: ObjectId;
+  },
+): Promise<Record<string, PanelSlotOverlapHit[]>> {
+  const resRows = await db
+    .collection(COLLECTION)
+    .find(
+      {
+        dateKey: params.dateKey,
+        reservationStatus: { $in: [...ACTIVE_STATUSES] },
+        ...(params.excludeReservationId ? { _id: { $ne: params.excludeReservationId } } : {}),
+      },
+      { projection: { timeLocal: 1, durationMinutes: 1, treatmentId: 1, customerName: 1, treatmentName: 1 } },
+    )
+    .toArray();
+
+  const labeled = resRows
+    .map((r) => {
+      const timeLocal = String(r.timeLocal ?? "").trim();
+      const iv = slotIntervalMs(
+        params.dateKey,
+        timeLocal,
+        reservationDurationMinutesFromDoc(r as { durationMinutes?: unknown; treatmentId?: unknown }),
+      );
+      if (!iv) return null;
+      return {
+        interval: iv,
+        customerName: String(r.customerName ?? "").trim() || "Cliente",
+        treatmentName: String(r.treatmentName ?? "").trim() || "Turno",
+      };
+    })
+    .filter(Boolean) as { interval: IntervalMs; customerName: string; treatmentName: string }[];
+
+  const out: Record<string, PanelSlotOverlapHit[]> = {};
+  for (const timeLocal of params.slots) {
+    const slot = slotIntervalMs(params.dateKey, timeLocal, params.durationMinutes);
+    if (!slot) continue;
+    const hits = labeled.filter((r) => intervalsOverlap(slot, r.interval));
+    if (hits.length > 0) {
+      out[timeLocal] = hits.map((h) => ({
+        customerName: h.customerName,
+        treatmentName: h.treatmentName,
+      }));
+    }
+  }
+  return out;
+}
