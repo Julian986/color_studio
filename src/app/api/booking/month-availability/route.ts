@@ -1,8 +1,13 @@
 ﻿import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { buildSalonCalendarItems } from "@/lib/booking/salon-availability";
+import {
+  buildSalonCalendarItems,
+  getAvailableTimesForDate,
+  getPanelNuevoPickerTimeSlots,
+} from "@/lib/booking/salon-availability";
 import { computeBookableSlots, computeBookableSlotsForTreatmentIds } from "@/lib/booking/compute-bookable-slots";
+import { parseBookingSlotScope, requiresPanelAuth } from "@/lib/booking/parse-booking-scope";
 import { getDb } from "@/lib/mongodb";
 import { verifyPanelCookie } from "@/lib/panel-turnos-auth";
 import { isValidServiceSelection } from "@/lib/treatments/catalog";
@@ -19,8 +24,7 @@ export async function GET(request: Request) {
     .split(",")
     .map((v) => v.trim())
     .filter(Boolean);
-  const scopeRaw = url.searchParams.get("scope")?.trim().toLowerCase() ?? "public";
-  const scope = scopeRaw === "panel" ? "panel" : "public";
+  const scope = parseBookingSlotScope(url.searchParams.get("scope") ?? "public");
 
   if (!Number.isFinite(year) || year < 2000 || year > 2100) {
     return NextResponse.json({ error: "Anio invalido." }, { status: 400 });
@@ -45,7 +49,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Tratamiento invalido." }, { status: 400 });
   }
 
-  if (scope === "panel") {
+  if (requiresPanelAuth(scope)) {
     const cookieStore = await cookies();
     if (!verifyPanelCookie(cookieStore.get("panel_turnos_auth")?.value)) {
       return NextResponse.json({ error: "No autorizado." }, { status: 401 });
@@ -58,6 +62,12 @@ export async function GET(request: Request) {
     const keys = buildSalonCalendarItems(year, monthIndex).map((d) => d.value);
     const entries = await Promise.all(
       keys.map(async (dateKey) => {
+        if (scope === "panel_nuevo") {
+          return [dateKey, getPanelNuevoPickerTimeSlots(dateKey).length > 0] as const;
+        }
+        if (scope === "panel") {
+          return [dateKey, getAvailableTimesForDate(dateKey).length > 0] as const;
+        }
         const slots =
           serviceIds.length > 0
             ? await computeBookableSlotsForTreatmentIds(db, {

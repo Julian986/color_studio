@@ -60,7 +60,7 @@ export function PanelNuevoTurnoClient() {
       dateKey: selectedDate,
       treatmentId: primaryTreatmentIdFromServiceIds(selectedServiceIds),
       serviceIds: selectedServiceIds.join(","),
-      scope: "panel",
+      scope: "panel_nuevo",
     });
     fetch(`/api/booking/slots?${q.toString()}`, { credentials: "same-origin" })
       .then((res) => res.json())
@@ -80,14 +80,6 @@ export function PanelNuevoTurnoClient() {
       cancelled = true;
     };
   }, [selectedDate, selectedServiceIds]);
-
-  useEffect(() => {
-    if (!selectedDate || !selectedTime || !selectedTreatmentId) return;
-    if (remoteSlots === undefined || remoteSlots === null) return;
-    if (!remoteSlots.includes(selectedTime)) {
-      setSelectedTime("");
-    }
-  }, [selectedDate, selectedTime, selectedServiceIds, remoteSlots]);
 
   async function handleSubmit() {
     if (selectedServiceIds.length === 0 || !selectedDate || !selectedTime || !datosComplete) return;
@@ -142,7 +134,7 @@ export function PanelNuevoTurnoClient() {
         </header>
 
         <BookingPicker
-          bookingContext="panel"
+          bookingContext="panel_nuevo"
           selectedTreatmentId={selectedTreatmentId}
           onTreatmentIdChange={setSelectedTreatmentId}
           selectedServiceIds={selectedServiceIds}

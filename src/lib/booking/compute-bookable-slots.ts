@@ -6,6 +6,7 @@ import {
   filterSlotsServiceEndsOnOrBeforeClose,
   getAvailableTimesForDate,
   getLastServiceEndMinutesForDate,
+  getPanelNuevoPickerTimeSlots,
 } from "@/lib/booking/salon-availability";
 import { getPublicBookableTimeSlots } from "@/lib/booking/public-slot-lead";
 import { filterPublicSlotsByTreatmentRules } from "@/lib/booking/treatment-slot-rules";
@@ -13,7 +14,12 @@ import { enforceSalonCapacityForScope } from "@/lib/booking/booking-capacity";
 import { filterSlotsBySalonCapacity, loadBusyIntervalsMs } from "@/lib/booking/slot-overlap";
 import { findSalonTreatmentById } from "@/lib/treatments/catalog";
 
-export type BookingSlotScope = "public" | "panel";
+export type BookingSlotScope = "public" | "panel" | "panel_nuevo";
+
+/** Plantilla del día para reprogramar / panel genérico (horario web). */
+export function getPanelPickerTimeSlots(dateKey: string): string[] {
+  return getAvailableTimesForDate(dateKey);
+}
 
 /**
  * Horarios elegibles para un día y tratamiento (plantilla + reglas de servicio + solapes con DB).
@@ -29,6 +35,13 @@ export async function computeBookableSlots(
     excludeReservationHexId?: string | null;
   },
 ): Promise<string[]> {
+  if (params.scope === "panel_nuevo") {
+    return getPanelNuevoPickerTimeSlots(params.dateKey);
+  }
+  if (params.scope === "panel") {
+    return getPanelPickerTimeSlots(params.dateKey);
+  }
+
   const treatment = findSalonTreatmentById(params.treatmentId.trim());
   if (!treatment) return [];
 
@@ -73,6 +86,13 @@ export async function computeBookableSlotsForTreatmentIds(
     excludeReservationHexId?: string | null;
   },
 ): Promise<string[]> {
+  if (params.scope === "panel_nuevo") {
+    return getPanelNuevoPickerTimeSlots(params.dateKey);
+  }
+  if (params.scope === "panel") {
+    return getPanelPickerTimeSlots(params.dateKey);
+  }
+
   const ids = params.treatmentIds.map((v) => v.trim()).filter(Boolean);
   if (ids.length === 0) return [];
   const treatments = ids

@@ -35,8 +35,12 @@ export type BookingPickerProps = {
    * `undefined`: usar `resolveTimeSlots` / plantilla. `null`: cargando.
    */
   remoteTimeSlots?: string[] | null;
-  /** `public`: reglas y textos de reserva web. `panel`: alta manual sin tope de “desde mañana”. */
-  bookingContext?: "public" | "panel";
+  /**
+   * `public`: reserva web.
+   * `panel`: reprogramar / panel con horario web.
+   * `panel_nuevo`: alta en /panel-turnos/nuevo (horario ampliado hasta las 18:00).
+   */
+  bookingContext?: "public" | "panel" | "panel_nuevo";
   bookingFocusRef?: React.RefObject<HTMLDivElement | null>;
   treatmentFirstHintVisible: boolean;
   onTreatmentFirstHintVisible: (visible: boolean) => void;
@@ -86,6 +90,13 @@ export function BookingPicker({
   onServiceIdsChange,
   panelSlotOverlaps = {},
 }: BookingPickerProps) {
+  const isPanelContext = bookingContext === "panel" || bookingContext === "panel_nuevo";
+  const slotsApiScope =
+    bookingContext === "panel_nuevo"
+      ? "panel_nuevo"
+      : bookingContext === "panel"
+        ? "panel"
+        : "public";
   const multiService = Boolean(onServiceIdsChange);
   const effectiveServiceIds = multiService
     ? normalizeServiceIds(selectedServiceIds)
@@ -139,7 +150,7 @@ export function BookingPicker({
       year: String(y),
       monthIndex: String(m),
       treatmentId: primaryId,
-      scope: bookingContext === "panel" ? "panel" : "public",
+      scope: slotsApiScope,
     });
     if (availIds.length > 0) {
       q.set("serviceIds", availIds.join(","));
@@ -174,13 +185,14 @@ export function BookingPicker({
   }, [minPublicDateKey, onDateChange, onTimeChange, selectedDate]);
 
   useEffect(() => {
+    if (isPanelContext) return;
     if (!selectedDate || !hasServiceSelection) return;
     if (monthAvailability === undefined || monthAvailability === null) return;
     if (monthAvailability[selectedDate] === false) {
       onDateChange("");
       onTimeChange("");
     }
-  }, [monthAvailability, onDateChange, onTimeChange, selectedDate, hasServiceSelection]);
+  }, [isPanelContext, monthAvailability, onDateChange, onTimeChange, selectedDate, hasServiceSelection]);
 
   const useRemoteSlots = remoteTimeSlots !== undefined;
   const slotsLoading = useRemoteSlots && selectedDate && remoteTimeSlots === null;
@@ -195,7 +207,7 @@ export function BookingPicker({
     : [];
   const isSelectedDateHoliday = Boolean(selectedDate && isArgentinaPublicHoliday(selectedDate));
   const selectedOverlapHits = selectedTime ? (panelSlotOverlaps[selectedTime] ?? []) : [];
-  const hasSelectedOverlap = bookingContext === "panel" && selectedOverlapHits.length > 0;
+  const hasSelectedOverlap = isPanelContext && selectedOverlapHits.length > 0;
 
   const activeStep = !hasServiceSelection
     ? 1
@@ -336,9 +348,11 @@ export function BookingPicker({
           </button>
         </div>
 
-        {bookingContext === "panel" && hasServiceSelection ? (
+        {isPanelContext && hasServiceSelection ? (
           <p className="mb-2 text-center text-[10px] leading-relaxed text-amber-200/75">
-            En el panel podés cargar turnos encimados. Los horarios con punto ámbar coinciden con otro turno.
+            {bookingContext === "panel_nuevo"
+              ? "Horario ampliado hasta las 18:00. Podés cargar turnos encimados; el punto ámbar avisa si coincide con otro."
+              : "En el panel podés elegir cualquier horario del día, aunque ya haya turnos. El punto ámbar avisa si coincide con otro."}
           </p>
         ) : null}
 
@@ -369,6 +383,7 @@ export function BookingPicker({
             const dayOpen = day.isAvailable && !isBeforeMinPublic;
             const monthAvailReady = monthAvailability !== undefined && monthAvailability !== null;
             const fullyBooked =
+              !isPanelContext &&
               Boolean(hasServiceSelection) &&
               monthAvailReady &&
               day.isCurrentMonth &&
@@ -469,7 +484,7 @@ export function BookingPicker({
             ) : availableTimes.length > 0 ? (
               availableTimes.map((time) => {
                 const isActive = time === selectedTime;
-                const overlapHits = bookingContext === "panel" ? panelSlotOverlaps[time] : undefined;
+                const overlapHits = isPanelContext ? panelSlotOverlaps[time] : undefined;
                 const hasOverlap = Boolean(overlapHits && overlapHits.length > 0);
                 return (
                   <button
@@ -503,7 +518,7 @@ export function BookingPicker({
                 className={`col-span-2 rounded-2xl border px-4 py-5 text-center ${
                   selectedDate
                     ? "border-amber-500/35 bg-amber-950/20"
-                    : bookingContext === "panel"
+                    : isPanelContext
                       ? "border-white/8 bg-[#171717]"
                       : "border-[var(--premium-gold)]/35 bg-[rgba(206,120,50,0.14)]"
                 }`}
@@ -521,7 +536,7 @@ export function BookingPicker({
                         : "Proba con otra fecha para ver turnos disponibles."}
                     </p>
                   </>
-                ) : bookingContext === "panel" ? (
+                ) : isPanelContext ? (
                   <p className="text-[13px] text-[var(--soft-gray)]/72">
                     Elegí una fecha para ver los horarios disponibles.
                   </p>

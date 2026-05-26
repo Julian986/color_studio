@@ -365,7 +365,7 @@ export type PanelReservationInsertInput = {
 
 const PANEL_NOTES_MAX_LEN = 2000;
 
-/** Alta manual desde el panel (sin Mercado Pago). Permite turnos encimados; bloqueos de agenda sí aplican. */
+/** Alta manual desde el panel (sin Mercado Pago). Sin restricción de cupos, solapes ni bloqueos de agenda. */
 export async function insertPanelReservation(
   db: Db,
   input: PanelReservationInsertInput,
@@ -407,36 +407,6 @@ export async function insertPanelReservation(
   const now = new Date();
 
   await ensureReservationIndexes(db);
-
-  const allowedTimes =
-    serviceItems.length > 1
-      ? await computeBookableSlotsForTreatmentIds(db, {
-          dateKey,
-          treatmentIds: serviceIds,
-          now,
-          scope: "panel",
-        })
-      : await computeBookableSlots(db, {
-          dateKey,
-          treatmentId: primaryTreatment.id,
-          now,
-          scope: "panel",
-        });
-  if (!allowedTimes.includes(timeLocal)) {
-    return { error: "Ese horario no está disponible.", code: "SLOT_UNAVAILABLE" };
-  }
-
-  const interval = slotIntervalMs(dateKey, timeLocal, totalDurationMinutes);
-  if (!interval) {
-    return { error: "Fecha u horario inválidos.", code: "INVALID_SLOT" };
-  }
-  const capGetterPanel = await buildCapGetterForDate(db, dateKey);
-  if (!canPlaceReservationSlot(dateKey, interval, [], capGetterPanel)) {
-    return {
-      error: "Ese horario cae en un bloqueo de agenda.",
-      code: "SLOT_UNAVAILABLE",
-    };
-  }
 
   let panelNotes: string | null = null;
   if (input.panelNotes != null && String(input.panelNotes).trim()) {

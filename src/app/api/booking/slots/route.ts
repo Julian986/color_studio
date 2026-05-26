@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 
 import { computeBookableSlots, computeBookableSlotsForTreatmentIds } from "@/lib/booking/compute-bookable-slots";
+import { parseBookingSlotScope, requiresPanelAuth } from "@/lib/booking/parse-booking-scope";
 import { buildPanelSlotOverlapMap } from "@/lib/booking/slot-overlap";
 import { getDb } from "@/lib/mongodb";
 import { verifyPanelCookie } from "@/lib/panel-turnos-auth";
@@ -17,8 +18,7 @@ export async function GET(request: Request) {
     .split(",")
     .map((v) => v.trim())
     .filter(Boolean);
-  const scopeRaw = url.searchParams.get("scope")?.trim().toLowerCase() ?? "public";
-  const scope = scopeRaw === "panel" ? "panel" : "public";
+  const scope = parseBookingSlotScope(url.searchParams.get("scope") ?? "public");
   const excludeReservationHexId =
     url.searchParams.get("excludeReservationHexId")?.trim() ??
     url.searchParams.get("excludeReservationId")?.trim() ??
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Tratamiento invalido." }, { status: 400 });
   }
 
-  if (scope === "panel") {
+  if (requiresPanelAuth(scope)) {
     const cookieStore = await cookies();
     if (!verifyPanelCookie(cookieStore.get("panel_turnos_auth")?.value)) {
       return NextResponse.json({ error: "No autorizado." }, { status: 401 });
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
 
   try {
     const db = await getDb();
-    const excludeHex = scope === "panel" ? excludeReservationHexId || undefined : undefined;
+    const excludeHex = requiresPanelAuth(scope) ? excludeReservationHexId || undefined : undefined;
     const slots =
       serviceIds.length > 0
         ? await computeBookableSlotsForTreatmentIds(db, {
@@ -73,7 +73,7 @@ export async function GET(request: Request) {
             excludeReservationHexId: excludeHex,
           });
 
-    if (scope !== "panel") {
+    if (!requiresPanelAuth(scope)) {
       return NextResponse.json({ slots });
     }
 

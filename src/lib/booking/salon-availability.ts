@@ -85,6 +85,38 @@ const availableTimesByWeekday: Record<number, string[]> = {
 
 const availableTimesByDateOverride: Record<string, string[]> = {};
 
+/**
+ * Plantilla ampliada solo para /panel-turnos/nuevo (misma apertura, cierre más tarde).
+ * Permite cargar turnos fuera del horario web (ej. viernes después de las 14:30).
+ */
+const PANEL_NUEVO_CLOSE_H = 18;
+const PANEL_NUEVO_CLOSE_M = 0;
+
+const panelNuevoTimesByWeekday: Record<number, string[]> = {
+  0: [],
+  1: [],
+  2: buildStepSlots(10, 0, PANEL_NUEVO_CLOSE_H, PANEL_NUEVO_CLOSE_M),
+  3: buildStepSlots(9, 30, PANEL_NUEVO_CLOSE_H, PANEL_NUEVO_CLOSE_M),
+  4: buildStepSlots(10, 0, PANEL_NUEVO_CLOSE_H, PANEL_NUEVO_CLOSE_M),
+  5: buildStepSlots(9, 30, PANEL_NUEVO_CLOSE_H, PANEL_NUEVO_CLOSE_M),
+  6: buildStepSlots(9, 30, PANEL_NUEVO_CLOSE_H, PANEL_NUEVO_CLOSE_M),
+};
+
+/** Horarios del picker en alta manual (/panel-turnos/nuevo), sin tope de cierre web. */
+export function getPanelNuevoPickerTimeSlots(value: string): string[] {
+  const date = parseDateKey(value);
+  const today = startOfDay(new Date());
+
+  if (startOfDay(date) < today) {
+    return [];
+  }
+  if (isArgentinaPublicHoliday(value)) {
+    return [];
+  }
+
+  return panelNuevoTimesByWeekday[date.getDay()] ?? [];
+}
+
 export function getLastServiceEndMinutesForDate(dateKey: string): number {
   const [y, m, d] = dateKey.split("-").map(Number);
   if (!y || !m || !d) return 0;
