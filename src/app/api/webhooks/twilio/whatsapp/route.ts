@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { parseWaReminderInboundAction } from "@/lib/whatsapp/parse-inbound-action";
 import { processWaReminderInboundReply } from "@/lib/whatsapp/process-reminder-reply";
-import { getTwilioClient } from "@/lib/twilio";
+import { buildTwilioWhatsAppSendParams, getTwilioClient } from "@/lib/twilio";
 
 export const runtime = "nodejs";
 
@@ -70,8 +70,9 @@ export async function POST(request: Request) {
 
     if (result.ok && result.replyText && process.env.TWILIO_WHATSAPP_FROM) {
       const client = getTwilioClient();
+      const sendParams = await buildTwilioWhatsAppSendParams(client);
       await client.messages.create({
-        from: process.env.TWILIO_WHATSAPP_FROM,
+        ...sendParams,
         to: from,
         body: result.replyText,
       });

@@ -3,7 +3,7 @@ import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { NextResponse } from "next/server";
 
 import { getDb } from "@/lib/mongodb";
-import { getTwilioClient } from "@/lib/twilio";
+import { buildTwilioWhatsAppSendParams, getTwilioClient } from "@/lib/twilio";
 import { buildReminderContentVariables } from "@/lib/whatsapp/reminder-content-variables";
 import { insertWhatsappOutboundLog } from "@/lib/whatsapp/whatsapp-logs";
 import { normalizeToWhatsAppE164 } from "@/lib/whatsapp/twilio-phone";
@@ -30,9 +30,9 @@ export async function GET(request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    if (!process.env.TWILIO_WHATSAPP_FROM) {
+    if (!process.env.TWILIO_WHATSAPP_FROM && !process.env.TWILIO_MESSAGING_SERVICE_SID?.trim()) {
       return NextResponse.json(
-        { error: "Falta variable de entorno: TWILIO_WHATSAPP_FROM" },
+        { error: "Falta TWILIO_WHATSAPP_FROM o TWILIO_MESSAGING_SERVICE_SID" },
         { status: 500 },
       );
     }
@@ -45,6 +45,7 @@ export async function GET(request) {
     const reservationsCol = db.collection("reservations");
     const logsCol = db.collection("whatsapp_logs");
     const client = getTwilioClient();
+    const sendParams = await buildTwilioWhatsAppSendParams(client);
 
     const reservations = await reservationsCol
       .find({
@@ -92,7 +93,7 @@ export async function GET(request) {
         });
 
         const twilioResponse = await client.messages.create({
-          from: process.env.TWILIO_WHATSAPP_FROM,
+          ...sendParams,
           to: normalizeToWhatsAppE164(reservation.customerPhone),
           contentSid: process.env.TWILIO_REMINDER_CONTENT_SID,
           contentVariables: contentVariablesJson,

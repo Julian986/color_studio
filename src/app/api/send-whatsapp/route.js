@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getDb } from "@/lib/mongodb";
-import { getTwilioClient } from "@/lib/twilio";
+import { buildTwilioWhatsAppSendParams, getTwilioClient } from "@/lib/twilio";
 import { buildReminderContentVariables } from "@/lib/whatsapp/reminder-content-variables";
 import { normalizeToWhatsAppE164 } from "@/lib/whatsapp/twilio-phone";
 
@@ -51,7 +51,9 @@ export async function POST(request) {
 
     const from = process.env.TWILIO_WHATSAPP_FROM;
     const contentSid = process.env.TWILIO_REMINDER_CONTENT_SID;
-    if (!from) throw new Error("Falta variable de entorno: TWILIO_WHATSAPP_FROM");
+    if (!from && !process.env.TWILIO_MESSAGING_SERVICE_SID?.trim()) {
+      throw new Error("Falta TWILIO_WHATSAPP_FROM o TWILIO_MESSAGING_SERVICE_SID");
+    }
     if (!contentSid) throw new Error("Falta variable de entorno: TWILIO_REMINDER_CONTENT_SID");
 
     const { contentVariablesJson, templateVariables } = buildReminderContentVariables({
@@ -61,8 +63,9 @@ export async function POST(request) {
     });
 
     const client = getTwilioClient();
+    const sendParams = await buildTwilioWhatsAppSendParams(client);
     const response = await client.messages.create({
-      from,
+      ...sendParams,
       to: normalizeToWhatsAppE164(to),
       contentSid,
       contentVariables: contentVariablesJson,
