@@ -44,6 +44,8 @@ export type PanelReservation = {
   source?: string;
   startsAt: string;
   createdAt: string;
+  waReminder24hSentAt?: string | null;
+  waAttendanceConfirmedAt?: string | null;
 };
 
 export type PanelAgendaBlock = {
@@ -563,6 +565,12 @@ export function PanelTurnosDashboard() {
                               paymentStatus={r.paymentStatus}
                               cancelledBy={r.cancelledBy ?? null}
                             />
+                            {r.waAttendanceConfirmedAt &&
+                            (r.reservationStatus === "confirmed" || r.reservationStatus === "pending_payment") ? (
+                              <span className="inline-block rounded-full bg-teal-500/16 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-teal-200/95">
+                                Confirmó asistencia
+                              </span>
+                            ) : null}
                             {r.source === "panel" ? (
                               <span className="inline-block rounded-full bg-sky-500/14 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-sky-200/95">
                                 Manual

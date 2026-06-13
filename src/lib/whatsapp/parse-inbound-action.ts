@@ -6,6 +6,10 @@ export function parseWaReminderInboundAction(fields: Record<string, string>): Wa
     fields.ButtonPayload,
     fields.ButtonText,
     fields.Body,
+    fields.ListId,
+    fields.ListTitle,
+    fields.InteractiveData,
+    fields.Payload,
   ]
     .filter(Boolean)
     .join(" ")
@@ -16,7 +20,14 @@ export function parseWaReminderInboundAction(fields: Record<string, string>): Wa
   if (!parts.trim()) return null;
 
   if (/\bcancel/.test(parts) || parts.includes("cancelar")) return "cancel";
-  if (/\bconfirm/.test(parts) || parts.includes("confirmar") || parts === "si" || parts === "sí") {
+  if (
+    /\bconfirm/.test(parts) ||
+    parts.includes("confirmar") ||
+    parts.includes("confirmo") ||
+    parts === "si" ||
+    parts === "sí" ||
+    parts === "yes"
+  ) {
     return "confirm";
   }
 

@@ -41,6 +41,18 @@ function serialize(r: ReservationDoc) {
           : null,
     startsAt: r.startsAt instanceof Date ? r.startsAt.toISOString() : String(r.startsAt),
     createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+    waReminder24hSentAt:
+      r.waReminder24hSentAt instanceof Date
+        ? r.waReminder24hSentAt.toISOString()
+        : r.waReminder24hSentAt
+          ? String(r.waReminder24hSentAt)
+          : null,
+    waAttendanceConfirmedAt:
+      r.waAttendanceConfirmedAt instanceof Date
+        ? r.waAttendanceConfirmedAt.toISOString()
+        : r.waAttendanceConfirmedAt
+          ? String(r.waAttendanceConfirmedAt)
+          : null,
   };
 }
 

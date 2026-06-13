@@ -33,7 +33,7 @@ async function findReservationForInboundReply(
   if (!digits) return null;
 
   const phoneMatch = customerPhoneDigitsQueryValues(digits);
-  return db.collection<ReservationDoc>(COLLECTION).findOne(
+  const byDigits = await db.collection<ReservationDoc>(COLLECTION).findOne(
     {
       customerPhoneDigits: { $in: phoneMatch },
       reservationStatus: { $in: ["confirmed", "pending_payment"] },
@@ -41,6 +41,25 @@ async function findReservationForInboundReply(
       startsAt: { $gte: input.now },
     },
     { sort: { startsAt: 1 } },
+  );
+  if (byDigits) return byDigits;
+
+  const candidates = await db
+    .collection<ReservationDoc>(COLLECTION)
+    .find({
+      reservationStatus: { $in: ["confirmed", "pending_payment"] },
+      waReminder24hSentAt: { $ne: null },
+      startsAt: { $gte: input.now },
+    })
+    .sort({ startsAt: 1 })
+    .limit(20)
+    .toArray();
+
+  return (
+    candidates.find((r) => {
+      const docDigits = r.customerPhoneDigits ?? canonicalPhoneDigitsAR(r.customerPhone);
+      return customerPhoneDigitsQueryValues(digits).includes(docDigits);
+    }) ?? null
   );
 }
 
