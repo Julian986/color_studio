@@ -102,6 +102,29 @@ const panelNuevoTimesByWeekday: Record<number, string[]> = {
   6: buildStepSlots(9, 30, PANEL_NUEVO_CLOSE_H, PANEL_NUEVO_CLOSE_M),
 };
 
+/** Temporal: activar con `NEXT_PUBLIC_SALON_CALENDAR_TEST_MODE=true` (cliente + servidor). */
+function isSalonCalendarTestMode(): boolean {
+  return (
+    process.env.NEXT_PUBLIC_SALON_CALENDAR_TEST_MODE === "true" ||
+    process.env.SALON_CALENDAR_TEST_MODE === "true"
+  );
+}
+
+/** Horario de prueba para dom/lun (mismo que sábado web). */
+const TEST_WEB_SLOTS_SUN_MON = buildStepSlots(9, 30, 13, 0);
+
+function slotsForWeekday(weekday: number, mode: "web" | "panel_nuevo"): string[] {
+  const map = mode === "panel_nuevo" ? panelNuevoTimesByWeekday : availableTimesByWeekday;
+  const normal = map[weekday] ?? [];
+  if (normal.length > 0) return normal;
+  if (isSalonCalendarTestMode() && (weekday === 0 || weekday === 1)) {
+    return mode === "panel_nuevo"
+      ? buildStepSlots(9, 30, PANEL_NUEVO_CLOSE_H, PANEL_NUEVO_CLOSE_M)
+      : TEST_WEB_SLOTS_SUN_MON;
+  }
+  return [];
+}
+
 /** Horarios del picker en alta manual (/panel-turnos/nuevo), sin tope de cierre web. */
 export function getPanelNuevoPickerTimeSlots(value: string): string[] {
   const date = parseDateKey(value);
@@ -114,13 +137,17 @@ export function getPanelNuevoPickerTimeSlots(value: string): string[] {
     return [];
   }
 
-  return panelNuevoTimesByWeekday[date.getDay()] ?? [];
+  return slotsForWeekday(date.getDay(), "panel_nuevo");
 }
 
 export function getLastServiceEndMinutesForDate(dateKey: string): number {
   const [y, m, d] = dateKey.split("-").map(Number);
   if (!y || !m || !d) return 0;
-  return lastServiceEndMinutesForWeekday(new Date(y, m - 1, d).getDay());
+  const weekday = new Date(y, m - 1, d).getDay();
+  if (isSalonCalendarTestMode() && (weekday === 0 || weekday === 1)) {
+    return 13 * 60;
+  }
+  return lastServiceEndMinutesForWeekday(weekday);
 }
 
 /** @deprecated Usar `getLastServiceEndMinutesForDate` por día. */
@@ -183,7 +210,7 @@ export function getAvailableTimesForDate(value: string) {
     return override;
   }
 
-  return availableTimesByWeekday[date.getDay()] ?? [];
+  return slotsForWeekday(date.getDay(), "web");
 }
 
 export type SalonCalendarItem = {
