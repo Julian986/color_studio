@@ -4,21 +4,11 @@ import { NextResponse } from "next/server";
 
 import { getDb } from "@/lib/mongodb";
 import { getTwilioClient } from "@/lib/twilio";
+import { buildReminderContentVariables } from "@/lib/whatsapp/reminder-content-variables";
+import { insertWhatsappOutboundLog } from "@/lib/whatsapp/whatsapp-logs";
+import { normalizeToWhatsAppE164 } from "@/lib/whatsapp/twilio-phone";
 
 const TZ = "America/Argentina/Buenos_Aires";
-
-function normalizeTo(to) {
-  // normaliza a +549 para celulares argentinos
-  let phone = String(to ?? "").replace(/\D/g, ""); // saca espacios
-  if (!phone) throw new Error("reservation.customerPhone inválido");
-  if (phone.startsWith("549")) phone = phone;
-  else if (phone.startsWith("54")) phone = `549${phone.slice(2)}`;
-  else if (phone.startsWith("9")) phone = `54${phone}`;
-  else phone = `549${phone}`;
-
-  const toWhatsApp = `whatsapp:+${phone}`;
-  return toWhatsApp;
-}
 
 function buildTomorrowRangeInArgentina(now = new Date()) {
   const todayKey = formatInTimeZone(now, TZ, "yyyy-MM-dd");
@@ -91,25 +81,30 @@ export async function GET(request) {
 
       try {
         const nombre = reservation.customerName ?? "";
-        const servicio = reservation.treatmentName ?? "";
         const fecha = formatInTimeZone(reservation.startsAt, TZ, "dd/MM/yyyy");
-        const hora = formatInTimeZone(reservation.startsAt, TZ, "HH:mm");
+        const hora =
+          (typeof reservation.timeLocal === "string" && reservation.timeLocal.trim()) ||
+          formatInTimeZone(reservation.startsAt, TZ, "HH:mm");
+        const { contentVariablesJson, templateVariables } = buildReminderContentVariables({
+          nombre,
+          fecha,
+          hora,
+        });
 
         const twilioResponse = await client.messages.create({
           from: process.env.TWILIO_WHATSAPP_FROM,
-          to: normalizeTo(reservation.customerPhone),
+          to: normalizeToWhatsAppE164(reservation.customerPhone),
           contentSid: process.env.TWILIO_REMINDER_CONTENT_SID,
-          contentVariables: JSON.stringify({ "1": nombre, "2": servicio, "3": fecha, "4": hora }),
+          contentVariables: contentVariablesJson,
         });
 
-        await logsCol.insertOne({
+        await insertWhatsappOutboundLog(db, {
+          reservationId: reservation._id.toHexString(),
           to: reservation.customerPhone,
-          message: "",
           sid: twilioResponse.sid,
           status: twilioResponse.status,
           template: process.env.TWILIO_REMINDER_CONTENT_SID ?? null,
-          templateVariables: { nombre, servicio, fecha, hora },
-          createdAt: new Date(),
+          templateVariables,
         });
 
         sent += 1;
@@ -122,8 +117,8 @@ export async function GET(request) {
         );
 
         await logsCol.insertOne({
+          direction: "outbound",
           to: reservation.customerPhone ?? null,
-          message: "",
           sid: null,
           status: "failed",
           createdAt: new Date(),

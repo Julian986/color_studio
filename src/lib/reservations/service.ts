@@ -621,15 +621,52 @@ export async function rescheduleReservation(
 }
 
 /**
+ * La clienta tocó «Confirmar» en el recordatorio por WhatsApp (no cambia estado de pago).
+ */
+export async function confirmAttendanceViaWhatsApp(
+  db: Db,
+  input: { reservationHexId: string; now?: Date },
+): Promise<{ ok: true; already?: boolean } | { error: string; code?: string }> {
+  await ensureReservationIndexes(db);
+  const hex = input.reservationHexId.trim();
+  const doc = await findReservationByHexId(db, hex);
+  if (!doc) {
+    return { error: "Turno no encontrado.", code: "NOT_FOUND" };
+  }
+  if (doc.reservationStatus === "cancelled") {
+    return { error: "El turno está cancelado.", code: "CANCELLED" };
+  }
+  if (doc.waAttendanceConfirmedAt) {
+    return { ok: true, already: true };
+  }
+
+  const now = input.now ?? new Date();
+  const result = await db.collection<ReservationDoc>(COLLECTION).updateOne(
+    {
+      _id: doc._id,
+      reservationStatus: { $in: ["confirmed", "pending_payment"] },
+      $or: [{ waAttendanceConfirmedAt: null }, { waAttendanceConfirmedAt: { $exists: false } }],
+    },
+    { $set: { waAttendanceConfirmedAt: now, updatedAt: now } },
+  );
+  if (result.modifiedCount !== 1) {
+    const again = await findReservationByHexId(db, hex);
+    if (again?.waAttendanceConfirmedAt) return { ok: true, already: true };
+    return { error: "No se pudo registrar la confirmación.", code: "CONFLICT" };
+  }
+  return { ok: true };
+}
+
+/**
  * Cancela una reserva activa.
- * Cliente: solo su WhatsApp; panel: cualquier turno cancelable.
+ * Cliente o WhatsApp: solo su teléfono; panel: cualquier turno cancelable.
  */
 export async function cancelReservation(
   db: Db,
   input: {
     reservationHexId: string;
     now: Date;
-    actor: "panel" | "customer";
+    actor: "panel" | "customer" | "whatsapp";
     customerCanonicalDigits?: string | null;
     cancelReason?: string | null;
   },
@@ -644,10 +681,13 @@ export async function cancelReservation(
     return { error: "Este turno no se puede cancelar.", code: "NOT_CANCELLABLE" };
   }
 
-  if (input.actor === "customer") {
+  if (input.actor === "customer" || input.actor === "whatsapp") {
     const canon = input.customerCanonicalDigits?.trim();
     if (!canon) {
-      return { error: "Tenés que iniciar sesión en tu perfil.", code: "UNAUTHORIZED" };
+      return {
+        error: input.actor === "customer" ? "Tenés que iniciar sesión en tu perfil." : "Teléfono no reconocido.",
+        code: "UNAUTHORIZED",
+      };
     }
     const docDigits = doc.customerPhoneDigits ?? canonicalPhoneDigitsAR(doc.customerPhone);
     if (!customerPhoneDigitsQueryValues(canon).includes(docDigits)) {
@@ -664,10 +704,10 @@ export async function cancelReservation(
       $set: {
         reservationStatus: "cancelled",
         cancelReason: reason || undefined,
-        cancelledBy: input.actor,
+        cancelledBy: input.actor === "panel" ? "panel" : input.actor === "whatsapp" ? "whatsapp" : "customer",
         updatedAt,
       },
-      $unset: { waReminder24hSentAt: "" },
+      $unset: { waReminder24hSentAt: "", waAttendanceConfirmedAt: "" },
     },
   );
   if (result.modifiedCount !== 1) {
