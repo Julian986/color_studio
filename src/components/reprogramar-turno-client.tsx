@@ -9,6 +9,15 @@ import { agendaBlockAppliesToDateKey } from "@/lib/booking/agenda-blocks-shared"
 import type { ReprogramDayRow } from "@/lib/booking/panel-reprogram-day-rows";
 import { PANEL_WEEK_LETTERS, buildPanelMonthGrid, panelMonthTitle } from "@/lib/booking/panel-month-grid";
 import { argentinaTodayDateKey, minPublicBookableDateKey } from "@/lib/booking/public-slot-lead";
+import {
+  panelBackBtn,
+  panelCard,
+  panelDayDefault,
+  panelDayOutside,
+  panelDaySelected,
+  panelPage,
+  panelPrimaryBtn,
+} from "@/components/panel/panel-ui";
 
 export type ReprogramarVariant = "customer" | "panel";
 
@@ -310,30 +319,37 @@ export function ReprogramarTurnoClient({
     setCalendarMonth((m) => m + 1);
   }
 
+  const light = true;
+
   return (
-    <main className="mx-auto w-full max-w-md px-4 pt-6 pb-24">
-      <header className="mb-5 flex items-center gap-3">
+    <div className={light ? panelPage : "min-h-screen bg-[#111111] text-[var(--soft-gray)]"}>
+    <main className="mx-auto w-full max-w-md px-5 pt-8 pb-28">
+      <header className="mb-6 flex items-center gap-3">
         <Link
           href={backHref}
-          className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-2xl border border-white/10 bg-[#171717] text-[var(--soft-gray)]/88 hover:bg-[#1d1d1d]"
+          className={light ? `${panelBackBtn} h-11 w-11` : "flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-2xl border border-white/10 bg-[#171717] text-[var(--soft-gray)]/88 hover:bg-[#1d1d1d]"}
           aria-label="Volver"
         >
-          <ChevronLeft className="h-5 w-5" strokeWidth={1.85} />
+          <ChevronLeft className="h-5 w-5" strokeWidth={2} />
         </Link>
         <div>
-          <h1 className="font-heading text-[22px] leading-tight text-[var(--premium-gold)]">Cambiar horario</h1>
-          <p className="mt-0.5 text-[12px] text-[var(--soft-gray)]/55">Elegí otro día u hora para el mismo servicio</p>
+          <h1 className={`font-heading text-3xl font-bold leading-tight ${light ? "text-gray-900" : "text-[var(--premium-gold)]"}`}>
+            Cambiar horario
+          </h1>
+          <p className={`mt-0.5 text-[16px] ${light ? "text-gray-500" : "text-[var(--soft-gray)]/55"}`}>
+            Elegí otro día u hora para el mismo servicio
+          </p>
         </div>
       </header>
 
       {loadError ? (
         <p
           role="alert"
-          className="mb-4 rounded-xl border border-amber-500/35 bg-amber-950/25 px-3 py-2.5 text-[13px] text-amber-100/95"
+          className={`mb-4 rounded-xl px-4 py-3 text-[16px] ${light ? "border border-amber-200 bg-amber-50 text-amber-900" : "border border-amber-500/35 bg-amber-950/25 text-amber-100/95"}`}
         >
           {loadError}{" "}
           {variant === "customer" ? (
-            <Link href="/perfil#acceso" className="font-semibold text-[var(--premium-gold)] underline-offset-2 hover:underline">
+            <Link href="/perfil#acceso" className="font-semibold text-[#B88E2F] underline-offset-2 hover:underline">
               Ir a acceso
             </Link>
           ) : null}
@@ -341,30 +357,34 @@ export function ReprogramarTurnoClient({
       ) : null}
 
       {!loadError && reservation === null ? (
-        <p className="py-10 text-center text-[14px] text-[var(--soft-gray)]/55">Cargando…</p>
+        <p className={`py-10 text-center text-[16px] ${light ? "text-gray-500" : "text-[var(--soft-gray)]/55"}`}>Cargando…</p>
       ) : null}
 
       {reservation && !movable ? (
-        <p className="rounded-xl border border-white/10 bg-[#171717] px-4 py-4 text-[14px] text-[var(--soft-gray)]/80">
+        <p className={`rounded-[24px] px-5 py-4 text-[16px] ${light ? "border border-gray-100 bg-white text-gray-700 shadow-[0_4px_20px_rgba(0,0,0,0.05)]" : "border border-white/10 bg-[#171717] text-[var(--soft-gray)]/80"}`}>
           Este turno no se puede reprogramar (está cancelado o ya no admite cambios).
         </p>
       ) : null}
 
       {reservation && movable ? (
         <div className="space-y-5">
-          <section className="rounded-2xl border border-white/8 bg-[#171717] px-4 py-4 shadow-[0_10px_28px_rgba(0,0,0,0.35)]">
-            <p className="text-[16px] font-semibold text-[var(--soft-gray)]">{reservation.treatmentName}</p>
-            <p className="mt-0.5 text-[12px] text-[var(--soft-gray)]/58">{reservation.subtitle}</p>
-            <p className="mt-3 text-[13px] text-[var(--soft-gray)]/55">
+          <section className={light ? `${panelCard} px-5 py-5` : "rounded-2xl border border-white/8 bg-[#171717] px-4 py-4 shadow-[0_10px_28px_rgba(0,0,0,0.35)]"}>
+            <p className={`text-[17px] font-semibold ${light ? "text-gray-900" : "text-[var(--soft-gray)]"}`}>
+              {reservation.treatmentName}
+            </p>
+            <p className={`mt-0.5 text-[15px] ${light ? "text-gray-500" : "text-[var(--soft-gray)]/58"}`}>
+              {reservation.subtitle}
+            </p>
+            <p className={`mt-3 text-[15px] ${light ? "text-gray-600" : "text-[var(--soft-gray)]/55"}`}>
               Turno actual:{" "}
-              <span className="font-semibold text-[var(--premium-gold)]">
+              <span className={`font-semibold ${light ? "text-[#B88E2F]" : "text-[var(--premium-gold)]"}`}>
                 {reservation.timeLocal} · {reservation.displayDate}
               </span>
             </p>
           </section>
 
           <div>
-            <p className="mb-2 text-[12px] font-semibold tracking-wide text-[var(--soft-gray)]/70">Día</p>
+            <p className={`mb-2 text-sm font-semibold tracking-wide uppercase ${light ? "text-gray-500" : "text-[var(--soft-gray)]/70"}`}>Día</p>
             <div ref={dayPickerRef} className="relative">
               <button
                 type="button"
@@ -373,24 +393,28 @@ export function ReprogramarTurnoClient({
                 aria-haspopup="dialog"
                 aria-controls="reprog-calendar-popover"
                 onClick={() => setDayPickerOpen((o) => !o)}
-                className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/12 bg-[#141414] px-3 py-3 text-left outline-none transition hover:border-white/18 focus-visible:border-[var(--premium-gold)]/45"
+                className={
+                  light
+                    ? "flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-left outline-none transition hover:border-gray-300 focus-visible:border-[#B88E2F] focus-visible:ring-2 focus-visible:ring-[#B88E2F]/25"
+                    : "flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/12 bg-[#141414] px-3 py-3 text-left outline-none transition hover:border-white/18 focus-visible:border-[var(--premium-gold)]/45"
+                }
               >
                 <span className="flex min-w-0 items-center gap-2.5">
-                  <CalendarDays className="h-4 w-4 shrink-0 text-[var(--premium-gold)]" strokeWidth={1.75} />
-                  <span className="min-w-0 flex-1 text-[14px] leading-snug text-[var(--soft-gray)]">
+                  <CalendarDays className="h-4 w-4 shrink-0 text-[#B88E2F]" strokeWidth={1.75} />
+                  <span className={`min-w-0 flex-1 text-[15px] leading-snug ${light ? "text-gray-800" : "text-[var(--soft-gray)]"}`}>
                     {/^\d{4}-\d{2}-\d{2}$/.test(dateKey) ? (
                       <>
                         <span className="font-semibold">{weekdayLongFromKey(dateKey)}</span>
-                        <span className="text-[var(--soft-gray)]/60"> · </span>
-                        <span className="capitalize text-[var(--soft-gray)]/75">{dayLongFromKey(dateKey)}</span>
+                        <span className={light ? "text-gray-400" : "text-[var(--soft-gray)]/60"}> · </span>
+                        <span className={`capitalize ${light ? "text-gray-600" : "text-[var(--soft-gray)]/75"}`}>{dayLongFromKey(dateKey)}</span>
                       </>
                     ) : (
-                      <span className="text-[var(--soft-gray)]/55">Elegí un día</span>
+                      <span className={light ? "text-gray-400" : "text-[var(--soft-gray)]/55"}>Elegí un día</span>
                     )}
                   </span>
                 </span>
                 <ChevronDown
-                  className={["h-5 w-5 shrink-0 text-[var(--soft-gray)]/50 transition", dayPickerOpen ? "rotate-180" : ""].join(" ")}
+                  className={["h-5 w-5 shrink-0 transition", light ? "text-gray-400" : "text-[var(--soft-gray)]/50", dayPickerOpen ? "rotate-180" : ""].join(" ")}
                   strokeWidth={2}
                   aria-hidden
                 />
@@ -401,31 +425,35 @@ export function ReprogramarTurnoClient({
                   id="reprog-calendar-popover"
                   role="dialog"
                   aria-label="Elegir día"
-                  className="absolute left-0 right-0 z-30 mt-2 rounded-[28px] border border-white/10 bg-[#171717] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.55)]"
+                  className={
+                    light
+                      ? "absolute left-0 right-0 z-30 mt-2 rounded-[24px] border border-gray-100 bg-white p-4 shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
+                      : "absolute left-0 right-0 z-30 mt-2 rounded-[28px] border border-white/10 bg-[#171717] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.55)]"
+                  }
                 >
                   <div className="relative mb-3 flex items-center justify-center px-10">
                     <button
                       type="button"
                       onClick={calPrevMonth}
-                      className="absolute left-0 flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl text-[var(--soft-gray)]/70 hover:bg-white/5 hover:text-[var(--soft-gray)]"
+                      className={`absolute left-0 flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl ${light ? "text-gray-600 hover:bg-gray-100" : "text-[var(--soft-gray)]/70 hover:bg-white/5 hover:text-[var(--soft-gray)]"}`}
                       aria-label="Mes anterior"
                     >
                       <ChevronLeft className="h-5 w-5" />
                     </button>
-                    <span className="text-center text-[15px] font-semibold capitalize tracking-tight text-[var(--soft-gray)]">
+                    <span className={`text-center text-[15px] font-semibold capitalize tracking-tight ${light ? "text-gray-900" : "text-[var(--soft-gray)]"}`}>
                       {panelMonthTitle(calendarYear, calendarMonth)}
                     </span>
                     <button
                       type="button"
                       onClick={calNextMonth}
-                      className="absolute right-0 flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl text-[var(--soft-gray)]/70 hover:bg-white/5 hover:text-[var(--soft-gray)]"
+                      className={`absolute right-0 flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl ${light ? "text-gray-600 hover:bg-gray-100" : "text-[var(--soft-gray)]/70 hover:bg-white/5 hover:text-[var(--soft-gray)]"}`}
                       aria-label="Mes siguiente"
                     >
                       <ChevronRight className="h-5 w-5" />
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-7 gap-y-1 text-center text-[11px] font-semibold tracking-wide text-[var(--soft-gray)]/45">
+                  <div className={`grid grid-cols-7 gap-y-1 text-center text-[11px] font-semibold tracking-wide ${light ? "text-gray-400" : "text-[var(--soft-gray)]/45"}`}>
                     {PANEL_WEEK_LETTERS.map((L) => (
                       <div key={L} className="py-2">
                         {L}
@@ -457,20 +485,25 @@ export function ReprogramarTurnoClient({
                           <span
                             className={[
                               "flex h-9 w-9 items-center justify-center rounded-full text-[14px] font-semibold leading-none transition",
-                              inMonth && !disabledDay ? "text-[var(--soft-gray)]" : "text-[var(--soft-gray)]/30",
                               disabledDay ? "opacity-35" : "",
                               sel && !disabledDay
-                                ? "bg-gradient-to-br from-[var(--accent-coral)] to-[var(--accent-orange)] text-white shadow-[0_8px_24px_rgba(182,75,84,0.35)]"
-                                : !disabledDay
-                                  ? "hover:bg-white/5"
-                                  : "",
+                                ? light
+                                  ? panelDaySelected
+                                  : "bg-gradient-to-br from-[var(--accent-coral)] to-[var(--accent-orange)] text-white shadow-[0_8px_24px_rgba(182,75,84,0.35)]"
+                                : inMonth && !disabledDay
+                                  ? light
+                                    ? panelDayDefault
+                                    : "text-[var(--soft-gray)] hover:bg-white/5"
+                                  : light
+                                    ? panelDayOutside
+                                    : "text-[var(--soft-gray)]/30",
                             ].join(" ")}
                           >
                             {cell.day}
                           </span>
                           <span className="mt-0.5 flex h-2 items-center justify-center">
                             {busyCount > 0 ? (
-                              <span className="block h-1 w-1 rounded-full bg-[var(--premium-gold)]" />
+                              <span className="block h-1 w-1 rounded-full bg-[#B88E2F]" />
                             ) : (
                               <span className="block h-1 w-1 rounded-full bg-transparent" />
                             )}
@@ -485,18 +518,18 @@ export function ReprogramarTurnoClient({
           </div>
 
           <div>
-            <p className="mb-2 text-[12px] font-semibold tracking-wide text-[var(--soft-gray)]/70">Horario</p>
+            <p className={`mb-2 text-sm font-semibold tracking-wide uppercase ${light ? "text-gray-500" : "text-[var(--soft-gray)]/70"}`}>Horario</p>
             {slotsLoading ? (
-              <div className="flex items-center gap-2 py-6 text-[14px] text-[var(--soft-gray)]/55">
+              <div className={`flex items-center gap-2 py-6 text-[15px] ${light ? "text-gray-500" : "text-[var(--soft-gray)]/55"}`}>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Cargando horarios…
               </div>
             ) : slotsError ? (
-              <p role="alert" className="rounded-xl border border-red-500/30 bg-red-950/20 px-3 py-2.5 text-[13px] text-red-200/95">
+              <p role="alert" className={`rounded-xl px-4 py-3 text-[15px] ${light ? "border border-red-200 bg-red-50 text-red-800" : "border border-red-500/30 bg-red-950/20 text-red-200/95"}`}>
                 {slotsError}
               </p>
             ) : !slotRows || slotRows.length === 0 ? (
-              <p className="py-4 text-center text-[13px] text-[var(--soft-gray)]/55">
+              <p className={`py-4 text-center text-[15px] ${light ? "text-gray-500" : "text-[var(--soft-gray)]/55"}`}>
                 No hay franjas ese día (salón cerrado, sin grilla o fuera del plazo de reserva web).
               </p>
             ) : (
@@ -513,24 +546,32 @@ export function ReprogramarTurnoClient({
                           type="button"
                           onClick={() => setTimeLocal(row.timeLocal)}
                           className={[
-                            "w-full cursor-pointer rounded-xl border px-3.5 py-2.5 text-left text-[13px] font-semibold transition",
+                            "w-full cursor-pointer rounded-xl border px-4 py-3 text-left text-[14px] font-semibold transition",
                             timeLocal === row.timeLocal
                               ? isOverlay
-                                ? "border-amber-400 bg-amber-950/30 text-amber-100"
-                                : "border-[var(--premium-gold)] bg-[var(--premium-gold)]/18 text-[var(--premium-gold)]"
+                                ? light
+                                  ? "border-amber-400 bg-amber-50 text-amber-900"
+                                  : "border-amber-400 bg-amber-950/30 text-amber-100"
+                                : light
+                                  ? "border-[#B88E2F] bg-[#B88E2F]/10 text-[#996515]"
+                                  : "border-[var(--premium-gold)] bg-[var(--premium-gold)]/18 text-[var(--premium-gold)]"
                               : isOverlay
-                                ? "border-amber-500/50 border-dashed bg-[#1a1814] text-amber-100/90 hover:border-amber-400/60"
-                                : "border-white/12 bg-[#171717] text-[var(--soft-gray)]/88 hover:border-white/20",
+                                ? light
+                                  ? "border-amber-300 border-dashed bg-amber-50/60 text-amber-900 hover:border-amber-400"
+                                  : "border-amber-500/50 border-dashed bg-[#1a1814] text-amber-100/90 hover:border-amber-400/60"
+                                : light
+                                  ? "border-gray-200 bg-white text-gray-800 hover:border-gray-300"
+                                  : "border-white/12 bg-[#171717] text-[var(--soft-gray)]/88 hover:border-white/20",
                           ].join(" ")}
                         >
                           <span className="font-mono tabular-nums">{row.timeLocal}</span>
                           <span
-                            className={`ml-2 text-[12px] font-medium ${isOverlay ? "text-amber-300/90" : "text-emerald-300/90"}`}
+                            className={`ml-2 text-[13px] font-medium ${isOverlay ? (light ? "text-amber-700" : "text-amber-300/90") : light ? "text-emerald-700" : "text-emerald-300/90"}`}
                           >
                             {isOverlay ? "Encimado" : "Disponible"}
                           </span>
                           {isOverlay ? (
-                            <span className="mt-1 block text-[12px] font-normal leading-snug text-amber-100/75">
+                            <span className={`mt-1 block text-[13px] font-normal leading-snug ${light ? "text-amber-800/80" : "text-amber-100/75"}`}>
                               Coincide con: {overlapLabel}
                             </span>
                           ) : null}
@@ -542,11 +583,11 @@ export function ReprogramarTurnoClient({
                     return (
                       <li
                         key={row.timeLocal}
-                        className="rounded-xl border border-white/10 bg-[#141414] px-3.5 py-2.5 text-[13px] text-[var(--soft-gray)]/72"
+                        className={`rounded-xl border px-4 py-3 text-[14px] ${light ? "border-gray-200 bg-gray-50 text-gray-600" : "border-white/10 bg-[#141414] text-[var(--soft-gray)]/72"}`}
                       >
-                        <span className="font-mono tabular-nums font-semibold text-[var(--soft-gray)]">{row.timeLocal}</span>
-                        <span className="ml-2 text-[12px] text-rose-200/85">Ocupado</span>
-                        <span className="mt-1 block text-[12px] leading-snug text-[var(--soft-gray)]/58">
+                        <span className={`font-mono tabular-nums font-semibold ${light ? "text-gray-800" : "text-[var(--soft-gray)]"}`}>{row.timeLocal}</span>
+                        <span className={`ml-2 text-[13px] ${light ? "text-red-600" : "text-rose-200/85"}`}>Ocupado</span>
+                        <span className={`mt-1 block text-[13px] leading-snug ${light ? "text-gray-500" : "text-[var(--soft-gray)]/58"}`}>
                           {row.customerName} · {row.treatmentName}
                         </span>
                       </li>
@@ -556,12 +597,12 @@ export function ReprogramarTurnoClient({
                     return (
                       <li
                         key={row.timeLocal}
-                        className="rounded-xl border border-amber-500/25 bg-amber-950/15 px-3.5 py-2.5 text-[13px] text-amber-100/88"
+                        className={`rounded-xl border px-4 py-3 text-[14px] ${light ? "border-amber-200 bg-amber-50 text-amber-900" : "border-amber-500/25 bg-amber-950/15 text-amber-100/88"}`}
                       >
                         <span className="font-mono tabular-nums font-semibold">{row.timeLocal}</span>
-                        <span className="ml-2 text-[12px]">Bloqueo · {scopeLabelPanel(row.scope)}</span>
+                        <span className="ml-2 text-[13px]">Bloqueo · {scopeLabelPanel(row.scope)}</span>
                         {row.notes ? (
-                          <span className="mt-1 block text-[12px] leading-snug text-amber-100/65">{row.notes}</span>
+                          <span className={`mt-1 block text-[13px] leading-snug ${light ? "text-amber-800/70" : "text-amber-100/65"}`}>{row.notes}</span>
                         ) : null}
                       </li>
                     );
@@ -569,10 +610,10 @@ export function ReprogramarTurnoClient({
                   return (
                     <li
                       key={row.timeLocal}
-                      className="rounded-xl border border-white/8 bg-[#1a1a1a] px-3.5 py-2.5 text-[13px] text-[var(--soft-gray)]/55"
+                      className={`rounded-xl border px-4 py-3 text-[14px] ${light ? "border-gray-100 bg-gray-50 text-gray-500" : "border-white/8 bg-[#1a1a1a] text-[var(--soft-gray)]/55"}`}
                     >
-                      <span className="font-mono tabular-nums font-semibold text-[var(--soft-gray)]/70">{row.timeLocal}</span>
-                      <span className="ml-2 text-[12px]">Sin cupo en esta franja</span>
+                      <span className={`font-mono tabular-nums font-semibold ${light ? "text-gray-600" : "text-[var(--soft-gray)]/70"}`}>{row.timeLocal}</span>
+                      <span className="ml-2 text-[13px]">Sin cupo en esta franja</span>
                     </li>
                   );
                 })}
@@ -581,7 +622,7 @@ export function ReprogramarTurnoClient({
           </div>
 
           {saveError ? (
-            <p role="alert" className="rounded-xl border border-red-500/30 bg-red-950/20 px-3 py-2.5 text-[13px] text-red-200/95">
+            <p role="alert" className={`rounded-xl px-4 py-3 text-[15px] ${light ? "border border-red-200 bg-red-50 text-red-800" : "border border-red-500/30 bg-red-950/20 text-red-200/95"}`}>
               {saveError}
             </p>
           ) : null}
@@ -591,12 +632,17 @@ export function ReprogramarTurnoClient({
             type="button"
             disabled={saving || !timeLocal}
             onClick={() => void handleSave()}
-            className="w-full cursor-pointer rounded-2xl bg-gradient-to-r from-[var(--accent-coral)] to-[var(--accent-orange)] py-3.5 text-[15px] font-bold text-white shadow-[0_10px_28px_rgba(182,75,84,0.35)] transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-45"
+            className={
+              light
+                ? panelPrimaryBtn
+                : "w-full cursor-pointer rounded-2xl bg-gradient-to-r from-[var(--accent-coral)] to-[var(--accent-orange)] py-3.5 text-[15px] font-bold text-white shadow-[0_10px_28px_rgba(182,75,84,0.35)] transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-45"
+            }
           >
             {saving ? "Guardando…" : "Confirmar nuevo horario"}
           </button>
         </div>
       ) : null}
     </main>
+    </div>
   );
 }

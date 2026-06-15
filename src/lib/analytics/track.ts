@@ -28,3 +28,8 @@ export function trackPanelClick(
 ): void {
   trackEvent(action, { category: "panel", ...(label ? { label } : {}), ...extra });
 }
+
+/** Ítem del menú en /perfil (Mis turnos, Historial, etc.). */
+export function trackPerfilMenuClick(item: string): void {
+  trackEvent("perfil_menu_click", { category: "navigation", label: item });
+}
