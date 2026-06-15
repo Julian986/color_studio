@@ -184,7 +184,7 @@ export function PanelBloqueoAgendaClient() {
             </div>
             <div className="min-w-0">
               <h1 className="font-heading text-[20px] font-bold leading-tight text-gray-900">Bloqueo de agenda</h1>
-              <p className="text-[12px] text-gray-500">Marcelo ausente o silla ocupada</p>
+              <p className="text-[12px] text-gray-500">Yanina ausente o silla ocupada</p>
             </div>
           </div>
         </header>
@@ -413,7 +413,7 @@ export function PanelBloqueoAgendaClient() {
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ej: Marcelo fuera / capacitación"
+              placeholder="Ej: Yanina fuera / capacitación"
               className={`${panelInput} resize-none text-[14px]`}
             />
           </div>

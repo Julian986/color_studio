@@ -32,6 +32,7 @@ import {
 import { pickScrollToReservationId } from "@/lib/booking/panel-now-focus";
 import { trackPanelClick } from "@/lib/analytics/track";
 import { argentinaTodayDateKey } from "@/lib/booking/public-slot-lead";
+import { BRAND_NAME } from "@/lib/brand";
 
 export type { PanelAgendaBlock, PanelReservation } from "@/components/panel/panel-types";
 
@@ -80,7 +81,7 @@ function whatsAppChatUrl(
   if (!n) return null;
   const name = opts.customerName.trim();
   const greet = name ? `Hola ${name}` : "Hola";
-  const text = `${greet}, te escribimos desde Marcelo Ponzio Estilista por tu turno: ${opts.treatmentName}, ${opts.displayDate} a las ${opts.timeLocal}.`;
+  const text = `${greet}, te escribimos desde ${BRAND_NAME} por tu turno: ${opts.treatmentName}, ${opts.displayDate} a las ${opts.timeLocal}.`;
   return `https://wa.me/${n}?text=${encodeURIComponent(text)}`;
 }
 
@@ -282,7 +283,7 @@ export function PanelTurnosDashboard() {
             <div>
               <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-gray-500">Panel</p>
               <h1 className="font-montserrat text-[22px] font-bold leading-tight text-gray-900">Agenda del salón</h1>
-              <p className="mt-1 text-[14px] text-gray-500">Marcelo Ponzio Estilista</p>
+              <p className="mt-1 text-[14px] text-gray-500">{BRAND_NAME}</p>
             </div>
           </div>
 
