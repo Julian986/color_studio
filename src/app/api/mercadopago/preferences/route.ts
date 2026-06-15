@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 type Body = { reservationId?: string; checkoutToken?: string };
 
+
 export async function POST(request: Request) {
   let body: Body;
   try {
