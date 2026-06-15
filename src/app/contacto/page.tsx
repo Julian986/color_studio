@@ -1,13 +1,8 @@
 "use client";
 
 import {
-  CalendarDays,
-  Home as HomeIcon,
   Instagram,
   MapPin,
-  Percent,
-  Sparkles,
-  User,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -175,39 +170,6 @@ export default function ContactoPage() {
         </section>
         */}
       </main>
-
-      <nav className="fixed right-0 bottom-0 left-0 z-30">
-        <div className="flex w-full items-center justify-between border-t border-white/8 bg-black/60 px-4 py-2.5 backdrop-blur-[16px]">
-          <Link href="/" className="flex min-w-0 flex-1 flex-col items-center gap-1">
-            <HomeIcon className="h-5 w-5 text-[var(--soft-gray)]/90" strokeWidth={1.9} />
-            <span className="text-[9px] tracking-[0.12em] text-[var(--soft-gray)]/80">
-              Inicio
-            </span>
-          </Link>
-          <Link
-            href="/tratamientos"
-            className="flex min-w-0 flex-1 flex-col items-center gap-1 text-[var(--soft-gray)]/80"
-          >
-            <Sparkles className="h-5 w-5 text-[var(--soft-gray)]/90" strokeWidth={1.8} />
-            <span className="text-[9px] tracking-[0.12em]">Tratamientos</span>
-          </Link>
-          <Link href="/turnos" className="flex min-w-0 flex-1 flex-col items-center gap-1 text-[var(--soft-gray)]/80">
-            <CalendarDays className="h-5 w-5 text-[var(--soft-gray)]/90" strokeWidth={1.8} />
-            <span className="text-[9px] tracking-[0.12em]">Turnos</span>
-          </Link>
-          <Link
-            href="/promociones"
-            className="flex min-w-0 flex-1 flex-col items-center gap-1 text-[var(--soft-gray)]/80"
-          >
-            <Percent className="h-5 w-5 text-[var(--soft-gray)]/90" strokeWidth={1.8} />
-            <span className="text-[9px] tracking-[0.12em]">Promos</span>
-          </Link>
-          <Link href="/perfil" className="flex min-w-0 flex-1 flex-col items-center gap-1 text-[var(--soft-gray)]/80">
-            <User className="h-5 w-5 text-[var(--soft-gray)]/90" strokeWidth={1.8} />
-            <span className="text-[9px] tracking-[0.12em]">Perfil</span>
-          </Link>
-        </div>
-      </nav>
     </div>
   );
 }

@@ -9,6 +9,12 @@
   --accent-orange: #ce7832;
   /* Texto sobre botones rellenos en tono dorado */
   --on-accent: #1f1814;
+  /* Flujo de reserva / panel (tema claro) */
+  --surface-light: #f8f6f2;
+  --surface-card: #ffffff;
+  --text-primary: #1e1e1e;
+  --text-secondary: #666666;
+  --border-light: #e5e5e5;
 }
 
 @theme inline {
@@ -28,4 +34,34 @@ body {
 
 .font-heading {
   font-family: var(--font-playfair), serif;
+}
+
+.font-montserrat {
+  font-family: var(--font-montserrat), sans-serif;
+}
+
+.app-bottom-nav {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+.app-bottom-nav__inner {
+  font-size: 16px;
+  line-height: normal;
+}
+
+.app-bottom-nav__icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.app-bottom-nav__label {
+  display: block;
+  font-family: var(--font-montserrat), sans-serif;
+  font-size: 10px !important;
+  line-height: 10px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
 }

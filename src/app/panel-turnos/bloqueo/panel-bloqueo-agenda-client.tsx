@@ -6,6 +6,19 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  panelBackBtn,
+  panelCard,
+  panelContainer,
+  panelDayDefault,
+  panelDayOutside,
+  panelDaySelected,
+  panelInput,
+  panelLabel,
+  panelPage,
+  panelPrimaryBtn,
+} from "@/components/panel/panel-ui";
+import { trackPanelClick } from "@/lib/analytics/track";
+import {
   PANEL_WEEK_LETTERS,
   buildPanelMonthGrid,
   panelMonthTitle,
@@ -149,6 +162,7 @@ export function PanelBloqueoAgendaClient() {
         setError(data.error ?? "No se pudo guardar.");
         return;
       }
+      trackPanelClick("bloquear_horario", "saved");
       router.push("/panel-turnos");
     } catch {
       setError("Error de red. Probá de nuevo.");
@@ -158,30 +172,26 @@ export function PanelBloqueoAgendaClient() {
   }
 
   return (
-    <div className="min-h-screen bg-[#111111] pb-24 text-[var(--soft-gray)]">
-      <div className="mx-auto max-w-md px-4 pt-6">
+    <div className={panelPage}>
+      <div className={`${panelContainer} pt-6`}>
         <header className="mb-6 flex items-center gap-3">
-          <Link
-            href="/panel-turnos"
-            className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-2xl border border-white/10 bg-[#171717] text-[var(--soft-gray)]/80 hover:bg-[#1d1d1d]"
-            aria-label="Volver al panel"
-          >
+          <Link href="/panel-turnos" className={panelBackBtn} aria-label="Volver al panel">
             <ChevronLeft className="h-5 w-5" strokeWidth={2} />
           </Link>
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500/90 to-orange-700/90 text-white shadow-[0_8px_22px_rgba(180,83,9,0.35)]">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-800">
               <Lock className="h-5 w-5" strokeWidth={2.2} />
             </div>
             <div className="min-w-0">
-              <h1 className="font-heading text-[20px] leading-tight text-[var(--premium-gold)]">Bloqueo de agenda</h1>
-              <p className="text-[12px] text-[var(--soft-gray)]/55">Profesional ausente o silla ocupada</p>
+              <h1 className="font-heading text-[20px] font-bold leading-tight text-gray-900">Bloqueo de agenda</h1>
+              <p className="text-[12px] text-gray-500">Marcelo ausente o silla ocupada</p>
             </div>
           </div>
         </header>
 
-        <section className="space-y-4 overflow-visible rounded-[28px] border border-white/8 bg-[#171717] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.38)]">
+        <section className={`space-y-4 overflow-visible ${panelCard} p-4`}>
           <div ref={calendarWrapRef} className="relative">
-            <p className="text-[11px] tracking-[0.12em] text-[var(--soft-gray)]/55" id="fecha-bloqueo-label">
+            <p className={panelLabel} id="fecha-bloqueo-label">
               Fecha (primera ocurrencia)
             </p>
             <button
@@ -191,14 +201,14 @@ export function PanelBloqueoAgendaClient() {
               aria-expanded={calendarOpen}
               aria-haspopup="dialog"
               onClick={toggleCalendar}
-              className="mt-1.5 flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-white/10 bg-[#141414] px-3 py-3 text-left text-[15px] text-[var(--soft-gray)] outline-none transition hover:border-white/16 focus:border-[var(--premium-gold)]/55"
+              className="mt-1.5 flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3 py-3 text-left text-[15px] text-gray-900 outline-none transition hover:border-gray-300 focus:border-[#B88E2F]/50"
             >
               <span className="flex min-w-0 items-center gap-2">
-                <CalendarDays className="h-4 w-4 shrink-0 text-[var(--premium-gold)]/85" strokeWidth={1.85} />
+                <CalendarDays className="h-4 w-4 shrink-0 text-[#B88E2F]" strokeWidth={1.85} />
                 <span className="truncate">{formatSalonDisplayDate(anchorDateKey)}</span>
               </span>
               <ChevronDown
-                className={`h-4 w-4 shrink-0 text-[var(--soft-gray)]/55 transition ${calendarOpen ? "rotate-180" : ""}`}
+                className={`h-4 w-4 shrink-0 text-gray-400 transition ${calendarOpen ? "rotate-180" : ""}`}
                 strokeWidth={2}
               />
             </button>
@@ -207,31 +217,31 @@ export function PanelBloqueoAgendaClient() {
               <div
                 role="dialog"
                 aria-label="Elegir fecha"
-                className="absolute z-50 mt-2 w-full rounded-[28px] border border-white/8 bg-[#171717] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.45)]"
+                className={`absolute z-50 mt-2 w-full ${panelCard} p-4`}
               >
                 <div className="relative mb-3 flex items-center justify-center px-10">
                   <button
                     type="button"
                     onClick={prevCalMonth}
-                    className="absolute left-0 flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl text-[var(--soft-gray)]/70 hover:bg-white/5 hover:text-[var(--soft-gray)]"
+                    className="absolute left-0 flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-800"
                     aria-label="Mes anterior"
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
-                  <span className="text-center text-[15px] font-semibold capitalize tracking-tight text-[var(--soft-gray)]">
+                  <span className="text-center text-[15px] font-semibold capitalize tracking-tight text-gray-900">
                     {panelMonthTitle(calYear, calMonth)}
                   </span>
                   <button
                     type="button"
                     onClick={nextCalMonth}
-                    className="absolute right-0 flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl text-[var(--soft-gray)]/70 hover:bg-white/5 hover:text-[var(--soft-gray)]"
+                    className="absolute right-0 flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-800"
                     aria-label="Mes siguiente"
                   >
                     <ChevronRight className="h-5 w-5" />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-7 gap-y-1 text-center text-[11px] font-semibold tracking-wide text-[var(--soft-gray)]/45">
+                <div className="grid grid-cols-7 gap-y-1 text-center text-[11px] font-semibold tracking-wide text-gray-400">
                   {PANEL_WEEK_LETTERS.map((L) => (
                     <div key={L} className="py-2">
                       {L}
@@ -261,12 +271,9 @@ export function PanelBloqueoAgendaClient() {
                         <span
                           className={[
                             "flex h-9 w-9 items-center justify-center rounded-full text-[14px] font-semibold leading-none transition",
-                            cell.inMonth ? "text-[var(--soft-gray)]" : "text-[var(--soft-gray)]/30",
-                            sel
-                              ? "bg-gradient-to-br from-[var(--accent-coral)] to-[var(--accent-orange)] text-white shadow-[0_8px_24px_rgba(182,75,84,0.35)]"
-                              : isDisabled
-                                ? "opacity-40"
-                                : "hover:bg-white/5",
+                            cell.inMonth ? panelDayDefault : panelDayOutside,
+                            sel ? panelDaySelected : "",
+                            isDisabled ? "opacity-40" : "",
                           ].join(" ")}
                         >
                           {cell.day}
@@ -281,7 +288,7 @@ export function PanelBloqueoAgendaClient() {
           </div>
 
           <div>
-            <label className="text-[11px] tracking-[0.12em] text-[var(--soft-gray)]/55" htmlFor="startTime">
+            <label className={panelLabel} htmlFor="startTime">
               Hora de inicio
             </label>
             <input
@@ -290,12 +297,12 @@ export function PanelBloqueoAgendaClient() {
               step={900}
               value={timeLocal}
               onChange={(e) => setTimeLocal(e.target.value)}
-              className="mt-1.5 w-full cursor-pointer rounded-xl border border-white/10 bg-[#141414] px-3 py-3 text-[15px] outline-none focus:border-[var(--premium-gold)]/55"
+              className={panelInput}
             />
           </div>
 
           <div>
-            <label className="text-[11px] tracking-[0.12em] text-[var(--soft-gray)]/55" htmlFor="endTime">
+            <label className={panelLabel} htmlFor="endTime">
               Hora de fin
             </label>
             <input
@@ -304,18 +311,18 @@ export function PanelBloqueoAgendaClient() {
               step={900}
               value={endTimeLocal}
               onChange={(e) => setEndTimeLocal(e.target.value)}
-              className="mt-1.5 w-full cursor-pointer rounded-xl border border-white/10 bg-[#141414] px-3 py-3 text-[15px] outline-none focus:border-[var(--premium-gold)]/55"
+              className={panelInput}
             />
             {durationMinutes > 0 && durationMinutes < 15 ? (
-              <p className="mt-1 text-[11px] text-amber-200/90">La franja debe durar al menos 15 minutos.</p>
+              <p className="mt-1 text-[11px] text-amber-700">La franja debe durar al menos 15 minutos.</p>
             ) : null}
             {durationMinutes === 0 && hhmmToMinutes(timeLocal) !== null && hhmmToMinutes(endTimeLocal) !== null ? (
-              <p className="mt-1 text-[11px] text-amber-200/90">La hora de fin tiene que ser posterior a la de inicio.</p>
+              <p className="mt-1 text-[11px] text-amber-700">La hora de fin tiene que ser posterior a la de inicio.</p>
             ) : null}
           </div>
 
           <fieldset>
-            <legend className="text-[11px] tracking-[0.12em] text-[var(--soft-gray)]/55">Alcance</legend>
+            <legend className={panelLabel}>Alcance</legend>
             <div className="mt-2 space-y-2">
               {(
                 [
@@ -327,7 +334,7 @@ export function PanelBloqueoAgendaClient() {
                 <label
                   key={opt.v}
                   className={`flex cursor-pointer flex-col rounded-xl border px-3 py-2.5 transition ${
-                    scope === opt.v ? "border-[var(--premium-gold)]/55 bg-black/25" : "border-white/8 bg-black/15"
+                    scope === opt.v ? "border-[#B88E2F]/50 bg-[#B88E2F]/8" : "border-gray-200 bg-gray-50"
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -337,22 +344,22 @@ export function PanelBloqueoAgendaClient() {
                       value={opt.v}
                       checked={scope === opt.v}
                       onChange={() => setScope(opt.v)}
-                      className="accent-[var(--premium-gold)]"
+                      className="accent-[#B88E2F]"
                     />
-                    <span className="text-[14px] font-medium text-[var(--soft-gray)]">{opt.label}</span>
+                    <span className="text-[14px] font-medium text-gray-900">{opt.label}</span>
                   </div>
-                  <span className="mt-1 pl-6 text-[11px] leading-snug text-[var(--soft-gray)]/50">{opt.hint}</span>
+                  <span className="mt-1 pl-6 text-[11px] leading-snug text-gray-500">{opt.hint}</span>
                 </label>
               ))}
             </div>
           </fieldset>
 
           <fieldset>
-            <legend className="text-[11px] tracking-[0.12em] text-[var(--soft-gray)]/55">Recurrencia</legend>
+            <legend className={panelLabel}>Recurrencia</legend>
             <div className="mt-2 space-y-2">
               <label
                 className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 ${
-                  recurrenceType === "once" ? "border-[var(--premium-gold)]/55 bg-black/25" : "border-white/8"
+                  recurrenceType === "once" ? "border-[#B88E2F]/50 bg-[#B88E2F]/8" : "border-gray-200 bg-gray-50"
                 }`}
               >
                 <input
@@ -360,13 +367,13 @@ export function PanelBloqueoAgendaClient() {
                   name="recurrence"
                   checked={recurrenceType === "once"}
                   onChange={() => setRecurrenceType("once")}
-                  className="accent-[var(--premium-gold)]"
+                  className="accent-[#B88E2F]"
                 />
-                <span className="text-[14px]">Solo esta fecha</span>
+                <span className="text-[14px] text-gray-900">Solo esta fecha</span>
               </label>
               <label
                 className={`flex cursor-pointer flex-col gap-2 rounded-xl border px-3 py-2.5 ${
-                  recurrenceType === "weekly" ? "border-[var(--premium-gold)]/55 bg-black/25" : "border-white/8"
+                  recurrenceType === "weekly" ? "border-[#B88E2F]/50 bg-[#B88E2F]/8" : "border-gray-200 bg-gray-50"
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -375,13 +382,13 @@ export function PanelBloqueoAgendaClient() {
                     name="recurrence"
                     checked={recurrenceType === "weekly"}
                     onChange={() => setRecurrenceType("weekly")}
-                    className="accent-[var(--premium-gold)]"
+                    className="accent-[#B88E2F]"
                   />
-                  <span className="text-[14px]">Cada semana (mismo día de la semana)</span>
+                  <span className="text-[14px] text-gray-900">Cada semana (mismo día de la semana)</span>
                 </div>
                 {recurrenceType === "weekly" ? (
                   <div className="pl-6">
-                    <label className="text-[11px] text-[var(--soft-gray)]/50" htmlFor="untilDate">
+                    <label className="text-[11px] text-gray-500" htmlFor="untilDate">
                       Hasta (opcional, dejar vacío = sin fin)
                     </label>
                     <input
@@ -389,7 +396,7 @@ export function PanelBloqueoAgendaClient() {
                       type="date"
                       value={untilDateKey}
                       onChange={(e) => setUntilDateKey(e.target.value)}
-                      className="mt-1 w-full cursor-pointer rounded-xl border border-white/10 bg-[#141414] px-3 py-2.5 text-[14px] outline-none focus:border-[var(--premium-gold)]/55"
+                      className={panelInput}
                     />
                   </div>
                 ) : null}
@@ -398,7 +405,7 @@ export function PanelBloqueoAgendaClient() {
           </fieldset>
 
           <div>
-            <label className="text-[11px] tracking-[0.12em] text-[var(--soft-gray)]/55" htmlFor="notes">
+            <label className={panelLabel} htmlFor="notes">
               Nota interna (opcional)
             </label>
             <textarea
@@ -406,13 +413,13 @@ export function PanelBloqueoAgendaClient() {
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ej: Profesional fuera / capacitación"
-              className="mt-1.5 w-full resize-none rounded-xl border border-white/10 bg-[#141414] px-3 py-3 text-[14px] outline-none placeholder:text-[var(--soft-gray)]/35 focus:border-[var(--premium-gold)]/55"
+              placeholder="Ej: Marcelo fuera / capacitación"
+              className={`${panelInput} resize-none text-[14px]`}
             />
           </div>
 
           {error ? (
-            <p className="rounded-xl border border-red-500/35 bg-red-950/35 px-3 py-2 text-[13px] text-red-200/95">
+            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
               {error}
             </p>
           ) : null}
@@ -421,7 +428,7 @@ export function PanelBloqueoAgendaClient() {
             type="button"
             disabled={!canSubmit || submitting}
             onClick={() => void handleSubmit()}
-            className="flex h-[52px] w-full cursor-pointer items-center justify-center rounded-2xl bg-gradient-to-r from-amber-600 to-orange-700 text-[16px] font-semibold text-white shadow-[0_10px_28px_rgba(180,83,9,0.35)] disabled:cursor-not-allowed disabled:opacity-45"
+            className={panelPrimaryBtn}
           >
             {submitting ? "Guardando…" : "Guardar bloqueo"}
           </button>

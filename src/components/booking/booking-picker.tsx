@@ -1,10 +1,12 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { ColorStudioServicePickerSheet } from "@/components/booking/color-studio-service-picker-sheet";
+import type { TreatmentCategory } from "@/lib/treatments/catalog";
 import {
+  SALON_TREATMENT_CATEGORIES,
   SALON_TREATMENT_OPTIONS,
   buildSalonCalendarItems,
   formatSalonDisplayDate,
@@ -13,13 +15,12 @@ import {
   salonWeekdayLabels,
 } from "@/lib/booking/salon-availability";
 import { isArgentinaPublicHoliday } from "@/lib/booking/argentina-holidays";
-import { minPublicBookableDateKey } from "@/lib/booking/public-slot-lead";
+import { argentinaTodayDateKey, minPublicBookableDateKey } from "@/lib/booking/public-slot-lead";
+import type { PanelSlotOverlapHit } from "@/lib/booking/slot-overlap";
 import {
-  findSalonTreatmentById,
   normalizeServiceIds,
   primaryTreatmentIdFromServiceIds,
 } from "@/lib/treatments/catalog";
-import type { PanelSlotOverlapHit } from "@/lib/booking/slot-overlap";
 
 export type BookingPickerProps = {
   selectedTreatmentId: string;
@@ -35,11 +36,7 @@ export type BookingPickerProps = {
    * `undefined`: usar `resolveTimeSlots` / plantilla. `null`: cargando.
    */
   remoteTimeSlots?: string[] | null;
-  /**
-   * `public`: reserva web.
-   * `panel`: reprogramar / panel con horario web.
-   * `panel_nuevo`: alta en /panel-turnos/nuevo (horario ampliado hasta las 18:00).
-   */
+  /** `public`: reserva web. `panel`: reprogramar. `panel_nuevo`: alta manual (hasta 18:00). */
   bookingContext?: "public" | "panel" | "panel_nuevo";
   bookingFocusRef?: React.RefObject<HTMLDivElement | null>;
   treatmentFirstHintVisible: boolean;
@@ -55,11 +52,11 @@ export type BookingPickerProps = {
   comboHintText?: string;
   comboDurationLabel?: string;
   comboAlertText?: string | null;
-  /** Varios servicios en la misma visita (turnos públicos y panel). */
   selectedServiceIds?: string[];
   onServiceIdsChange?: (ids: string[]) => void;
-  /** Solo panel: turnos que se superponen con otros (avisos visuales). */
   panelSlotOverlaps?: Record<string, PanelSlotOverlapHit[]>;
+  /** Solo renderiza calendario u horarios (flujo wizard pantalla completa). */
+  wizardSection?: "date" | "time";
 };
 
 export function BookingPicker({
@@ -89,55 +86,52 @@ export function BookingPicker({
   selectedServiceIds = [],
   onServiceIdsChange,
   panelSlotOverlaps = {},
+  wizardSection,
 }: BookingPickerProps) {
   const isPanelContext = bookingContext === "panel" || bookingContext === "panel_nuevo";
-  const slotsApiScope =
-    bookingContext === "panel_nuevo"
-      ? "panel_nuevo"
-      : bookingContext === "panel"
-        ? "panel"
-        : "public";
+  const isLight = Boolean(wizardSection) || bookingContext === "public" || bookingContext === "panel" || bookingContext === "panel_nuevo";
   const multiService = Boolean(onServiceIdsChange);
   const effectiveServiceIds = multiService
     ? normalizeServiceIds(selectedServiceIds)
     : selectedTreatmentId
       ? [selectedTreatmentId]
       : [];
+  const hasServiceSelection = effectiveServiceIds.length > 0;
   const [visibleMonthDate, setVisibleMonthDate] = useState(() => {
     const today = new Date();
-    return new Date(today.getFullYear(), today.getMonth(), 1);
+    if (bookingContext === "panel") {
+      return new Date(today.getFullYear(), today.getMonth(), 1);
+    }
+    const [y, m] = minPublicBookableDateKey(today).split("-").map(Number);
+    return new Date(y, m - 1, 1);
   });
   /** `undefined`: sin servicio o sin datos; `null`: cargando; objeto: hay al menos un hueco ese día para el servicio. */
   const [monthAvailability, setMonthAvailability] = useState<Record<string, boolean> | null | undefined>(undefined);
   const [isTreatmentModalOpen, setIsTreatmentModalOpen] = useState(false);
   const [draftServiceIds, setDraftServiceIds] = useState<string[]>([]);
+  const [activeTreatmentCategory, setActiveTreatmentCategory] = useState<TreatmentCategory | null>(null);
+  const minPublicDateKey = bookingContext === "public" ? minPublicBookableDateKey() : null;
 
-  const hasServiceSelection = effectiveServiceIds.length > 0;
-  const summaryTreatments = useMemo(
-    () =>
-      effectiveServiceIds.flatMap((id) => {
-        const opt = SALON_TREATMENT_OPTIONS.find((o) => o.id === id);
-        return opt ? [opt] : [];
-      }),
-    [effectiveServiceIds],
+  const selectedTreatment = useMemo(
+    () => SALON_TREATMENT_OPTIONS.find((option) => option.id === selectedTreatmentId),
+    [selectedTreatmentId],
   );
-  const selectedTreatment = summaryTreatments[0];
-  const selectedTreatmentDetail = useMemo(
-    () => findSalonTreatmentById(primaryTreatmentIdFromServiceIds(effectiveServiceIds)),
-    [effectiveServiceIds],
+  const visibleTreatments = useMemo(
+    () =>
+      activeTreatmentCategory
+        ? SALON_TREATMENT_OPTIONS.filter((option) => option.category === activeTreatmentCategory)
+        : [],
+    [activeTreatmentCategory],
   );
   const calendarItems = useMemo(
     () => buildSalonCalendarItems(visibleMonthDate.getFullYear(), visibleMonthDate.getMonth()),
     [visibleMonthDate],
   );
   const visibleMonthLabel = `${salonMonthNames[visibleMonthDate.getMonth()]} ${visibleMonthDate.getFullYear()}`;
-  const minPublicDateKey =
-    bookingContext === "public" ? minPublicBookableDateKey() : null;
+  const todayKey = argentinaTodayDateKey();
 
   useEffect(() => {
-    const availIds = monthAvailabilityServiceIds.length > 0 ? monthAvailabilityServiceIds : effectiveServiceIds;
-    const primaryId = primaryTreatmentIdFromServiceIds(availIds);
-    if (!primaryId.trim() && availIds.length === 0) {
+    if (!hasServiceSelection && monthAvailabilityServiceIds.length === 0) {
       setMonthAvailability(undefined);
       return;
     }
@@ -146,14 +140,21 @@ export function BookingPicker({
     setMonthAvailability(null);
     const y = visibleMonthDate.getFullYear();
     const m = visibleMonthDate.getMonth();
+    const idsForApi =
+      monthAvailabilityServiceIds.length > 0 ? monthAvailabilityServiceIds : effectiveServiceIds;
     const q = new URLSearchParams({
       year: String(y),
       monthIndex: String(m),
-      treatmentId: primaryId,
-      scope: slotsApiScope,
+      treatmentId: primaryTreatmentIdFromServiceIds(idsForApi) || selectedTreatmentId,
+      scope:
+        bookingContext === "panel_nuevo"
+          ? "panel_nuevo"
+          : bookingContext === "panel"
+            ? "panel"
+            : "public",
     });
-    if (availIds.length > 0) {
-      q.set("serviceIds", availIds.join(","));
+    if (idsForApi.length > 0) {
+      q.set("serviceIds", idsForApi.join(","));
     }
     fetch(`/api/booking/month-availability?${q.toString()}`, {
       credentials: "same-origin",
@@ -175,24 +176,16 @@ export function BookingPicker({
       cancelled = true;
       ac.abort();
     };
-  }, [effectiveServiceIds, visibleMonthDate, bookingContext, monthAvailabilityServiceIds]);
+  }, [hasServiceSelection, selectedTreatmentId, effectiveServiceIds, visibleMonthDate, bookingContext, monthAvailabilityServiceIds]);
 
   useEffect(() => {
-    if (minPublicDateKey && selectedDate && selectedDate < minPublicDateKey) {
-      onDateChange("");
-      onTimeChange("");
-    }
-  }, [minPublicDateKey, onDateChange, onTimeChange, selectedDate]);
-
-  useEffect(() => {
-    if (isPanelContext) return;
     if (!selectedDate || !hasServiceSelection) return;
     if (monthAvailability === undefined || monthAvailability === null) return;
     if (monthAvailability[selectedDate] === false) {
       onDateChange("");
       onTimeChange("");
     }
-  }, [isPanelContext, monthAvailability, onDateChange, onTimeChange, selectedDate, hasServiceSelection]);
+  }, [monthAvailability, onDateChange, onTimeChange, selectedDate, hasServiceSelection]);
 
   const useRemoteSlots = remoteTimeSlots !== undefined;
   const slotsLoading = useRemoteSlots && selectedDate && remoteTimeSlots === null;
@@ -207,7 +200,6 @@ export function BookingPicker({
     : [];
   const isSelectedDateHoliday = Boolean(selectedDate && isArgentinaPublicHoliday(selectedDate));
   const selectedOverlapHits = selectedTime ? (panelSlotOverlaps[selectedTime] ?? []) : [];
-  const hasSelectedOverlap = isPanelContext && selectedOverlapHits.length > 0;
 
   const activeStep = !hasServiceSelection
     ? 1
@@ -217,122 +209,168 @@ export function BookingPicker({
         ? 3
         : 4;
 
+  const stepCardClass = (step: number) =>
+    isLight
+      ? `flex w-full cursor-pointer items-center justify-between rounded-2xl border bg-[var(--surface-card)] px-4 py-4 text-left shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all ${
+          activeStep === step
+            ? "border-[var(--premium-gold)] ring-2 ring-[var(--premium-gold)]/25"
+            : "border-[var(--border-light)]"
+        }`
+      : `flex w-full cursor-pointer items-center justify-between rounded-2xl border bg-[#171717] px-4 py-3 text-left transition-all ${
+          activeStep === step
+            ? "border-[var(--premium-gold)] shadow-[0_0_0_1px_rgba(228,202,105,0.22),0_0_22px_rgba(206,120,50,0.18)]"
+            : "border-white/8"
+        }`;
+
+  const stepCardStaticClass = (step: number) =>
+    isLight
+      ? `flex items-center justify-between rounded-2xl border bg-[var(--surface-card)] px-4 py-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all ${
+          activeStep === step
+            ? "border-[var(--premium-gold)] ring-2 ring-[var(--premium-gold)]/25"
+            : "border-[var(--border-light)]"
+        }`
+      : `flex items-center justify-between rounded-2xl border bg-[#171717] px-4 py-3 transition-all ${
+          activeStep === step
+            ? "border-[var(--premium-gold)] shadow-[0_0_0_1px_rgba(228,202,105,0.22),0_0_22px_rgba(206,120,50,0.18)]"
+            : "border-white/8"
+        }`;
+
+  const stepLabelClass = isLight
+    ? "text-[16px] font-semibold tracking-[0.06em] text-[var(--text-secondary)]"
+    : "text-[11px] tracking-[0.14em] text-[var(--soft-gray)]/55";
+
+  const stepValueClass = isLight
+    ? "mt-1 text-[16px] font-semibold text-[var(--text-primary)]"
+    : "mt-1 text-[14px] text-[var(--soft-gray)]";
+
+  const stepMetaClass = isLight
+    ? "mt-1 text-[16px] text-[var(--text-secondary)]"
+    : "mt-1 text-[11px] text-[var(--soft-gray)]/55";
+
+  const stepHintClass = isLight
+    ? "mt-2 flex items-center gap-2 text-[16px] font-medium text-[var(--accent-orange)]"
+    : "mt-2 flex items-center gap-2 text-[11px] text-[var(--premium-gold)]/92";
+
   const openTreatmentModal = () => {
-    setDraftServiceIds([...effectiveServiceIds]);
+    if (multiService) {
+      setDraftServiceIds([...effectiveServiceIds]);
+    } else {
+      setActiveTreatmentCategory(selectedTreatment?.category ?? null);
+    }
     setIsTreatmentModalOpen(true);
   };
 
   const closeTreatmentModal = () => {
     setIsTreatmentModalOpen(false);
+    setActiveTreatmentCategory(null);
     setDraftServiceIds([]);
   };
 
-  const confirmServices = (ids: string[]) => {
-    const normalized = normalizeServiceIds(ids);
-    if (multiService && onServiceIdsChange) {
-      onServiceIdsChange(normalized);
-      onTreatmentIdChange(primaryTreatmentIdFromServiceIds(normalized));
-    } else {
-      onTreatmentIdChange(primaryTreatmentIdFromServiceIds(normalized));
-    }
+  const selectTreatment = (treatmentId: string) => {
+    onTreatmentIdChange(treatmentId);
     if (multiSelect && onToggleTreatmentId) {
-      for (const id of normalized) onToggleTreatmentId(id);
+      onToggleTreatmentId(treatmentId);
+      return;
     }
     closeTreatmentModal();
   };
 
-  const displaySummaryTitle =
-    summaryTitle ??
-    (summaryTreatments.length > 1
-      ? summaryTreatments.map((t) => t.name).join(" + ")
-      : summaryTreatments[0]?.name);
-
   return (
     <>
-      <section className="space-y-2">
-        <button
-          type="button"
-          onClick={openTreatmentModal}
-          className={`flex w-full cursor-pointer items-center justify-between rounded-2xl border bg-[#171717] px-4 py-3 text-left transition-all ${
-            activeStep === 1
-              ? "border-[var(--premium-gold)] shadow-[0_0_0_1px_rgba(228,202,105,0.22),0_0_22px_rgba(206,120,50,0.18)]"
-              : "border-white/8"
-          }`}
-        >
+      {!wizardSection && (
+      <section className="space-y-3">
+        <button type="button" onClick={openTreatmentModal} className={stepCardClass(1)}>
           <div>
-            <p className="text-[11px] tracking-[0.14em] text-[var(--soft-gray)]/55">Paso 1</p>
-            <p className="mt-1 text-[14px] text-[var(--soft-gray)]">
-              {displaySummaryTitle ?? (multiService ? "Elegí servicios" : "Elegí servicio")}
+            <p className={stepLabelClass}>Paso 1 · Servicio</p>
+            <p className={stepValueClass}>
+              {summaryTitle ?? (selectedTreatment ? selectedTreatment.name : "Elegí servicio")}
             </p>
-            {selectedCountLabel ? (
-              <p className="mt-1 text-[11px] text-[var(--soft-gray)]/55">{selectedCountLabel}</p>
-            ) : summaryTreatments.length > 1 ? (
-              <p className="mt-1 text-[11px] text-[var(--soft-gray)]/55">
-                {summaryTreatments.length} servicios en la misma visita
-              </p>
-            ) : selectedTreatment ? (
-              <p className="mt-1 text-[11px] text-[var(--soft-gray)]/55">
-                {selectedTreatmentDetail?.priceLabel
-                  ? `${selectedTreatmentDetail.priceLabel} · ${selectedTreatment.subtitle}`
-                  : selectedTreatment.subtitle}
+            {selectedCountLabel ? <p className={stepMetaClass}>{selectedCountLabel}</p> : selectedTreatment ? (
+              <p className={stepMetaClass}>
+                {selectedTreatment.category} · {selectedTreatment.subtitle}
               </p>
             ) : null}
             {selectedDurationLabel ? (
-              <div className="mt-2 inline-flex items-center rounded-full border border-[var(--premium-gold)]/55 bg-[var(--premium-gold)]/12 px-2.5 py-1">
-                <span className="text-[11px] font-semibold tracking-[0.02em] text-[var(--premium-gold)]">
+              <div
+                className={`mt-2 inline-flex items-center rounded-full px-3 py-1 ${
+                  isLight
+                    ? "border border-[var(--premium-gold)] bg-[var(--premium-gold)]/15"
+                    : "border border-[var(--premium-gold)]/55 bg-[var(--premium-gold)]/12"
+                }`}
+              >
+                <span
+                  className={`text-[16px] font-semibold ${isLight ? "text-[var(--text-primary)]" : "text-[var(--premium-gold)]"}`}
+                >
                   {selectedDurationLabel}
                 </span>
               </div>
             ) : null}
             {activeStep === 1 && (
-              <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--premium-gold)]/92">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--premium-gold)]" />
+              <div className={stepHintClass}>
+                <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--premium-gold)]" />
                 <span>Comenzá seleccionando el servicio</span>
               </div>
             )}
           </div>
-          <ChevronRight className="h-4 w-4 text-[var(--soft-gray)]/60" strokeWidth={1.8} />
+          <ChevronRight
+            className={`h-5 w-5 shrink-0 ${isLight ? "text-[var(--text-secondary)]" : "text-[var(--soft-gray)]/60"}`}
+            strokeWidth={1.8}
+          />
         </button>
 
-        <div
-          className={`flex items-center justify-between rounded-2xl border bg-[#171717] px-4 py-3 transition-all ${
-            activeStep === 2
-              ? "border-[var(--premium-gold)] shadow-[0_0_0_1px_rgba(228,202,105,0.22),0_0_22px_rgba(206,120,50,0.18)]"
-              : "border-white/8"
-          }`}
-        >
+        <div className={stepCardStaticClass(2)}>
           <div>
-            <p className="text-[11px] tracking-[0.14em] text-[var(--soft-gray)]/55">Paso 2</p>
-            <p className="mt-1 text-[14px] text-[var(--soft-gray)]">
-              {selectedDate ? formatSalonDisplayDate(selectedDate) : "Elegí día"}
-            </p>
+            <p className={stepLabelClass}>Paso 2 · Fecha</p>
+            <p className={stepValueClass}>{selectedDate ? formatSalonDisplayDate(selectedDate) : "Elegí día"}</p>
             {activeStep === 2 && (
-              <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--premium-gold)]/92">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--premium-gold)]" />
+              <div className={stepHintClass}>
+                <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--premium-gold)]" />
                 <span>Ahora elegí una fecha disponible</span>
               </div>
             )}
           </div>
-          <ChevronRight className="h-4 w-4 rotate-90 text-[var(--soft-gray)]/60" strokeWidth={1.8} />
+          <ChevronRight
+            className={`h-5 w-5 shrink-0 rotate-90 ${isLight ? "text-[var(--text-secondary)]" : "text-[var(--soft-gray)]/60"}`}
+            strokeWidth={1.8}
+          />
         </div>
       </section>
+      )}
 
-      <section className="mt-4 overflow-hidden rounded-[24px] border border-white/8 bg-[#e4c48f] p-3 text-[#2c241b] shadow-[0_12px_26px_rgba(0,0,0,0.36)]">
+      {(wizardSection === undefined || wizardSection === "date") && (
+      <section
+        className={
+          isLight
+            ? "mt-4 overflow-hidden rounded-[24px] border border-[var(--border-light)] bg-[var(--surface-card)] p-4 shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
+            : "mt-4 overflow-hidden rounded-[24px] border border-white/8 bg-[#e4c48f] p-3 text-[#2c241b] shadow-[0_12px_26px_rgba(0,0,0,0.36)]"
+        }
+      >
         <div className="mb-3 flex items-center justify-between">
           <button
             type="button"
             onClick={() =>
               setVisibleMonthDate((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))
             }
-            className="cursor-pointer rounded-lg p-1 text-[#7f6a45] hover:bg-black/10"
+            className={`cursor-pointer rounded-lg p-2 ${
+              isLight
+                ? "text-[var(--text-primary)] hover:bg-[var(--surface-light)]"
+                : "text-[#7f6a45] hover:bg-black/10"
+            }`}
+            aria-label="Mes anterior"
           >
-            <ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
+            <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
           </button>
-          <h2 className="flex items-center gap-2 text-[18px] leading-none font-heading">
+          <h2
+            className={`flex items-center gap-2 text-[20px] leading-none font-heading ${
+              isLight ? "font-bold text-[var(--text-primary)]" : ""
+            }`}
+          >
             {visibleMonthLabel}
-            {hasServiceSelection && monthAvailability === null ? (
+            {selectedTreatmentId && monthAvailability === null ? (
               <span
-                className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-[#7f6a45]/90"
+                className={`inline-block h-2.5 w-2.5 animate-pulse rounded-full ${
+                  isLight ? "bg-[var(--premium-gold)]" : "bg-[#7f6a45]/90"
+                }`}
                 aria-hidden
               />
             ) : null}
@@ -342,44 +380,52 @@ export function BookingPicker({
             onClick={() =>
               setVisibleMonthDate((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))
             }
-            className="cursor-pointer rounded-lg p-1 text-[#7f6a45] hover:bg-black/10"
+            className={`cursor-pointer rounded-lg p-2 ${
+              isLight
+                ? "text-[var(--text-primary)] hover:bg-[var(--surface-light)]"
+                : "text-[#7f6a45] hover:bg-black/10"
+            }`}
+            aria-label="Mes siguiente"
           >
-            <ChevronRight className="h-4 w-4" strokeWidth={1.8} />
+            <ChevronRight className="h-5 w-5" strokeWidth={1.8} />
           </button>
         </div>
-
-        {isPanelContext && hasServiceSelection ? (
-          <p className="mb-2 text-center text-[10px] leading-relaxed text-amber-200/75">
-            {bookingContext === "panel_nuevo"
-              ? "Horario ampliado hasta las 18:00. Podés cargar turnos encimados; el punto ámbar avisa si coincide con otro."
-              : "En el panel podés elegir cualquier horario del día, aunque ya haya turnos. El punto ámbar avisa si coincide con otro."}
-          </p>
-        ) : null}
 
         {treatmentFirstHintVisible ? (
           <p
             role="status"
             aria-live="polite"
-            className="mb-2 rounded-xl border border-[#8a7548]/55 bg-[#fff9ec]/97 px-3 py-2.5 text-center text-[12px] leading-snug text-[#2c241b] shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]"
+            className={
+              isLight
+                ? "mb-3 rounded-xl border border-[var(--premium-gold)]/40 bg-[var(--premium-gold)]/10 px-4 py-3 text-center text-[16px] leading-snug text-[var(--text-primary)]"
+                : "mb-2 rounded-xl border border-[#8a7548]/55 bg-[#fff9ec]/97 px-3 py-2.5 text-center text-[12px] leading-snug text-[#2c241b] shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]"
+            }
           >
             <span className="font-semibold">Primero elegí un servicio</span>
-            <span className="text-[#3b3224]"> (paso 1) para poder elegir el día.</span>
+            {isLight ? " (paso 1) para poder elegir el día." : " (paso 1) para poder elegir el día."}
           </p>
         ) : null}
 
         <div
           className="grid grid-cols-7 gap-y-2 text-center"
-          aria-busy={Boolean(hasServiceSelection && monthAvailability === null)}
+          aria-busy={Boolean(selectedTreatmentId && monthAvailability === null)}
         >
           {salonWeekdayLabels.map((label) => (
-            <div key={label} className="text-[10px] tracking-[0.08em] text-[#7f7364]">
+            <div
+              key={label}
+              className={
+                isLight
+                  ? "text-[16px] font-semibold tracking-[0.04em] text-[var(--text-secondary)]"
+                  : "text-[10px] tracking-[0.08em] text-[#7f7364]"
+              }
+            >
               {label}
             </div>
           ))}
           {calendarItems.map((day) => {
             const isSelected = day.value === selectedDate;
-            const isBeforeMinPublic =
-              Boolean(minPublicDateKey && day.value < minPublicDateKey);
+            const isToday = day.value === todayKey && day.isCurrentMonth;
+            const isBeforeMinPublic = Boolean(minPublicDateKey && day.value < minPublicDateKey);
             const dayOpen = day.isAvailable && !isBeforeMinPublic;
             const monthAvailReady = monthAvailability !== undefined && monthAvailability !== null;
             const fullyBooked =
@@ -391,6 +437,32 @@ export function BookingPicker({
               monthAvailability[day.value] === false;
             const isDisabled = !day.isCurrentMonth || !dayOpen || fullyBooked;
 
+            const dayClass = isLight
+              ? `mx-auto flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border text-[16px] font-semibold transition-all disabled:cursor-not-allowed ${
+                  isSelected
+                    ? "border-[var(--premium-gold)] bg-[var(--premium-gold)] text-[var(--on-accent)] shadow-[0_4px_12px_rgba(228,202,105,0.35)]"
+                    : fullyBooked
+                      ? "border-[var(--border-light)] bg-[var(--surface-light)] text-[var(--text-secondary)] line-through decoration-[var(--text-secondary)]"
+                      : !day.isCurrentMonth
+                        ? "border-transparent text-[var(--text-secondary)]/35"
+                        : dayOpen
+                          ? isToday
+                            ? "border-[var(--premium-gold)]/50 bg-[var(--premium-gold)]/12 text-[var(--text-primary)]"
+                            : "border-[var(--border-light)] bg-white text-[var(--text-primary)] hover:border-[var(--premium-gold)]/40 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
+                          : "border-transparent text-[var(--text-secondary)]/45"
+                }`
+              : `mx-auto flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-[12px] transition-colors disabled:cursor-not-allowed ${
+                  isSelected
+                    ? "bg-[#1a1a1a] text-[#c89b56] shadow-[0_6px_14px_rgba(0,0,0,0.25)]"
+                    : fullyBooked
+                      ? "bg-[#c9b89a]/55 text-[#5c4f3d] line-through decoration-[#6b5a45]"
+                      : !day.isCurrentMonth
+                        ? "text-[#cfbea8]/45"
+                        : dayOpen
+                          ? "bg-[#eed7ae] text-[#3b2f22]"
+                          : "text-[#897a67]"
+                }`;
+
             return (
               <button
                 key={day.value}
@@ -399,21 +471,19 @@ export function BookingPicker({
                 title={
                   fullyBooked
                     ? "Sin cupos para este servicio (ocupado o bloqueado)."
-                    : !dayOpen && day.isCurrentMonth
-                      ? isBeforeMinPublic
-                        ? "Los turnos web se reservan desde mañana."
-                        : "Día no disponible (cerrado o feriado)."
+                    : !day.isAvailable && day.isCurrentMonth
+                      ? "Día no disponible (cerrado o feriado)."
                       : undefined
                 }
                 aria-label={
                   fullyBooked
                     ? `${day.dayNumber}, sin cupos`
-                    : !dayOpen && day.isCurrentMonth
+                    : !day.isAvailable && day.isCurrentMonth
                       ? `${day.dayNumber}, no disponible`
                       : undefined
                 }
                 onClick={() => {
-                  if (!selectedTreatment) {
+                  if (!hasServiceSelection) {
                     onTreatmentFirstHintVisible(true);
                     return;
                   }
@@ -426,17 +496,7 @@ export function BookingPicker({
                     });
                   });
                 }}
-                className={`mx-auto flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-[12px] transition-colors disabled:cursor-not-allowed ${
-                  isSelected
-                    ? "bg-[#1a1a1a] text-[#c89b56] shadow-[0_6px_14px_rgba(0,0,0,0.25)]"
-                    : fullyBooked
-                      ? "bg-[#c9b89a]/55 text-[#5c4f3d] line-through decoration-[#6b5a45]"
-                      : !day.isCurrentMonth
-                        ? "text-[#cfbea8]/45"
-                        : dayOpen
-                          ? "bg-[#eed7ae] text-[#3b2f22]"
-                          : "text-[#897a67]"
-                }`}
+                className={dayClass}
               >
                 {day.dayNumber}
               </button>
@@ -444,108 +504,110 @@ export function BookingPicker({
           })}
         </div>
       </section>
+      )}
 
-      <div ref={bookingFocusRef} className="mt-4">
+      {(wizardSection === undefined || wizardSection === "time") && (
+      <div ref={bookingFocusRef} className={wizardSection ? "" : "mt-4"}>
         <section>
-          <div
-            className={`flex items-center justify-between rounded-2xl border bg-[#171717] px-4 py-3 transition-all ${
-              activeStep === 3
-                ? "border-[var(--premium-gold)] shadow-[0_0_0_1px_rgba(228,202,105,0.22),0_0_22px_rgba(206,120,50,0.18)]"
-                : "border-white/8"
-            }`}
-          >
+          {!wizardSection && (
+          <div className={stepCardStaticClass(3)}>
             <div>
-              <p className="text-[11px] tracking-[0.14em] text-[var(--soft-gray)]/55">Paso 3</p>
-              <p className="mt-1 text-[14px] text-[var(--soft-gray)]">
+              <p className={stepLabelClass}>Paso 3 · Horario</p>
+              <p className={stepValueClass}>
                 {selectedTime ? `Horario elegido: ${selectedTime}` : "Elegí horario"}
               </p>
               {activeStep === 3 && (
-                <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--premium-gold)]/92">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--premium-gold)]" />
+                <div className={stepHintClass}>
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--premium-gold)]" />
                   <span>Seleccioná un horario para continuar</span>
                 </div>
               )}
-              {hasSelectedOverlap ? (
-                <p className="mt-2 rounded-xl border border-amber-500/40 bg-amber-950/25 px-3 py-2 text-[11px] leading-snug text-amber-100/92">
-                  Turno encimado: coincide con{" "}
-                  {selectedOverlapHits.map((h) => `${h.customerName} (${h.treatmentName})`).join(", ")}.
-                  Solo vos podés cargarlo desde el panel.
-                </p>
-              ) : null}
             </div>
-            <ChevronRight className="h-4 w-4 text-[var(--soft-gray)]/60" strokeWidth={1.8} />
+            <ChevronRight
+              className={`h-5 w-5 shrink-0 ${isLight ? "text-[var(--text-secondary)]" : "text-[var(--soft-gray)]/60"}`}
+              strokeWidth={1.8}
+            />
           </div>
+          )}
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className={`grid grid-cols-2 gap-3 ${wizardSection ? "" : "mt-4"}`}>
             {slotsLoading ? (
-              <div className="col-span-2 rounded-2xl border border-white/8 bg-[#171717] px-4 py-5 text-center text-[13px] text-[var(--soft-gray)]/68">
+              <div
+                className={`col-span-2 rounded-2xl border px-4 py-6 text-center text-[16px] ${
+                  isLight
+                    ? "border-[var(--border-light)] bg-[var(--surface-card)] text-[var(--text-secondary)]"
+                    : "border-white/8 bg-[#171717] text-[var(--soft-gray)]/68"
+                }`}
+              >
                 Cargando horarios…
               </div>
             ) : availableTimes.length > 0 ? (
               availableTimes.map((time) => {
                 const isActive = time === selectedTime;
-                const overlapHits = isPanelContext ? panelSlotOverlaps[time] : undefined;
-                const hasOverlap = Boolean(overlapHits && overlapHits.length > 0);
                 return (
                   <button
                     key={time}
                     type="button"
-                    title={
-                      hasOverlap
-                        ? `Encima de: ${overlapHits!.map((h) => `${h.customerName} · ${h.treatmentName}`).join("; ")}`
-                        : undefined
-                    }
                     onClick={() => onTimeChange(time)}
-                    className={`relative h-11 cursor-pointer rounded-xl border text-[16px] transition-colors ${
-                      isActive
-                        ? hasOverlap
-                          ? "border-amber-400 bg-[rgba(245,158,11,0.18)] text-amber-100"
-                          : "border-[var(--premium-gold)] bg-[rgba(206,120,50,0.14)] text-[var(--premium-gold)]"
-                        : hasOverlap
-                          ? "border-amber-500/55 border-dashed bg-[#1a1814] text-amber-100/90"
+                    className={`h-12 min-h-[48px] cursor-pointer rounded-xl border text-[16px] font-semibold transition-all ${
+                      isLight
+                        ? isActive
+                          ? "border-[var(--premium-gold)] bg-[var(--premium-gold)] text-[var(--on-accent)] shadow-[0_4px_14px_rgba(228,202,105,0.35)]"
+                          : "border-[var(--border-light)] bg-white text-[var(--text-primary)] hover:border-[var(--premium-gold)]/45 hover:shadow-[0_4px_14px_rgba(0,0,0,0.08)]"
+                        : isActive
+                          ? "border-[var(--premium-gold)] bg-[rgba(206,120,50,0.14)] text-[var(--premium-gold)]"
                           : "border-white/8 bg-[#151515] text-[var(--soft-gray)]"
                     }`}
                   >
-                    <span>{time}</span>
-                    {hasOverlap ? (
-                      <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-400" aria-hidden />
-                    ) : null}
+                    {time}
                   </button>
                 );
               })
             ) : (
               <div
-                className={`col-span-2 rounded-2xl border px-4 py-5 text-center ${
+                className={`col-span-2 rounded-2xl border px-4 py-6 text-center ${
                   selectedDate
-                    ? "border-amber-500/35 bg-amber-950/20"
-                    : isPanelContext
-                      ? "border-white/8 bg-[#171717]"
-                      : "border-[var(--premium-gold)]/35 bg-[rgba(206,120,50,0.14)]"
+                    ? isLight
+                      ? "border-amber-300 bg-amber-50"
+                      : "border-amber-500/35 bg-amber-950/20"
+                    : isLight
+                      ? "border-[var(--premium-gold)]/35 bg-[var(--premium-gold)]/10"
+                      : bookingContext === "panel"
+                        ? "border-white/8 bg-[#171717]"
+                        : "border-[var(--premium-gold)]/35 bg-[rgba(206,120,50,0.14)]"
                 }`}
               >
                 {selectedDate ? (
                   <>
-                    <p className="text-[13px] font-medium text-amber-100/95">
+                    <p
+                      className={`text-[16px] font-semibold ${
+                        isLight ? "text-[var(--text-primary)]" : "text-amber-100/95"
+                      }`}
+                    >
                       {isSelectedDateHoliday
                         ? "Feriado (cerrado): no hay horarios disponibles para este dia."
                         : "No hay horarios disponibles para este dia."}
                     </p>
-                    <p className="mt-1 text-[12px] text-amber-100/75">
+                    <p className={`mt-2 text-[16px] ${isLight ? "text-[var(--text-secondary)]" : "text-amber-100/75"}`}>
                       {isSelectedDateHoliday
                         ? "Elegi otra fecha habilitada para ver turnos disponibles."
                         : "Proba con otra fecha para ver turnos disponibles."}
                     </p>
                   </>
-                ) : isPanelContext ? (
-                  <p className="text-[13px] text-[var(--soft-gray)]/72">
+                ) : bookingContext === "panel" ? (
+                  <p className={`text-[16px] ${isLight ? "text-[var(--text-secondary)]" : "text-[var(--soft-gray)]/72"}`}>
                     Elegí una fecha para ver los horarios disponibles.
                   </p>
                 ) : (
                   <>
-                    <p className="text-[13px] font-medium text-[var(--premium-gold)]">
+                    <p
+                      className={`text-[16px] font-semibold ${
+                        isLight ? "text-[var(--text-primary)]" : "text-[var(--premium-gold)]"
+                      }`}
+                    >
                       Los turnos web se reservan a partir de mañana (no el mismo día).
                     </p>
-                    <p className="mt-1 text-[12px] text-[var(--soft-gray)]/88">
+                    <p className={`mt-2 text-[16px] ${isLight ? "text-[var(--text-secondary)]" : "text-[var(--soft-gray)]/88"}`}>
                       Elegí una fecha desde mañana para ver horarios.
                     </p>
                   </>
@@ -555,14 +617,236 @@ export function BookingPicker({
           </div>
         </section>
       </div>
+      )}
 
-      {isTreatmentModalOpen ? (
+      {multiService && isTreatmentModalOpen ? (
         <ColorStudioServicePickerSheet
           selectedIds={draftServiceIds}
-          onConfirm={confirmServices}
+          onConfirm={(ids) => {
+            const normalized = normalizeServiceIds(ids);
+            onServiceIdsChange?.(normalized);
+            onTreatmentIdChange(primaryTreatmentIdFromServiceIds(normalized));
+            closeTreatmentModal();
+          }}
           onClose={closeTreatmentModal}
         />
       ) : null}
+
+      {!multiService && !wizardSection && isTreatmentModalOpen && (
+        <div
+          className={`fixed inset-0 z-40 flex items-end ${
+            isLight ? "bg-black/40 backdrop-blur-[2px]" : "bg-black/60 backdrop-blur-[3px]"
+          }`}
+        >
+          <button
+            type="button"
+            aria-label="Cerrar selector de servicio"
+            onClick={closeTreatmentModal}
+            className="absolute inset-0 cursor-pointer bg-transparent"
+          />
+
+          <div
+            className={
+              isLight
+                ? "relative max-h-[88vh] w-full overflow-y-auto rounded-t-[32px] border-t border-[var(--border-light)] bg-[var(--surface-light)] px-4 pt-3 pb-8 shadow-[0_-12px_40px_rgba(0,0,0,0.12)]"
+                : "relative w-full rounded-t-[32px] border-t border-white/8 bg-[#161616] px-4 pt-3 pb-6 shadow-[0_-18px_40px_rgba(0,0,0,0.45)]"
+            }
+          >
+            <div
+              className={`mx-auto mb-4 h-1.5 w-14 rounded-full ${
+                isLight ? "bg-[var(--border-light)]" : "bg-white/12"
+              }`}
+            />
+
+            <div className="mb-4 flex items-center justify-between">
+              {activeTreatmentCategory ? (
+                <button
+                  type="button"
+                  onClick={() => setActiveTreatmentCategory(null)}
+                  className={`cursor-pointer rounded-lg p-2 ${
+                    isLight
+                      ? "text-[var(--text-primary)] hover:bg-white"
+                      : "text-[var(--soft-gray)]/75 hover:bg-white/5"
+                  }`}
+                  aria-label="Volver a categorías"
+                >
+                  <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
+                </button>
+              ) : (
+                <span className="h-5 w-5" />
+              )}
+
+              <h2
+                className={`text-[26px] leading-none font-heading ${
+                  isLight ? "font-bold text-[var(--text-primary)]" : ""
+                }`}
+              >
+                {activeTreatmentCategory ?? "Elegí servicio"}
+              </h2>
+
+              <button
+                type="button"
+                onClick={closeTreatmentModal}
+                className={`cursor-pointer rounded-lg px-3 py-2 text-[16px] font-semibold ${
+                  isLight
+                    ? "text-[var(--text-secondary)] hover:bg-white"
+                    : "text-[var(--soft-gray)]/75 hover:bg-white/5"
+                }`}
+              >
+                Cerrar
+              </button>
+            </div>
+            {multiSelect ? (
+              <div
+                className={`mb-3 rounded-xl border px-4 py-3 ${
+                  isLight
+                    ? "border-[var(--border-light)] bg-white shadow-[0_2px_10px_rgba(0,0,0,0.04)]"
+                    : "border-white/10 bg-[#1b1b1b]"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p
+                    className={`min-w-0 flex-1 text-[16px] leading-snug ${
+                      isLight ? "text-[var(--text-primary)]" : "text-[var(--soft-gray)]/82"
+                    }`}
+                  >
+                    <span className={`font-bold ${isLight ? "text-[var(--accent-orange)]" : "text-[var(--premium-gold)]"}`}>
+                      {selectedTreatmentIds.length}
+                    </span>{" "}
+                    seleccionados
+                    {comboDurationLabel ? (
+                      <span className={isLight ? "text-[var(--text-secondary)]" : "text-[var(--soft-gray)]/58"}>
+                        {" "}
+                        ·{" "}
+                        <span className="font-semibold text-[var(--premium-gold)]">{comboDurationLabel}</span>
+                      </span>
+                    ) : null}
+                    {summaryTitle ? (
+                      <span className={isLight ? "text-[var(--text-secondary)]" : "text-[var(--soft-gray)]/58"}>
+                        {" "}
+                        · {summaryTitle}
+                      </span>
+                    ) : null}
+                  </p>
+                  {selectedTreatmentIds.length > 0 && onClearTreatmentIds ? (
+                    <button
+                      type="button"
+                      onClick={onClearTreatmentIds}
+                      aria-label="Quitar todos los servicios seleccionados"
+                      className="shrink-0 cursor-pointer rounded-lg border border-red-300 bg-red-50 p-2 text-red-600 transition hover:bg-red-100"
+                    >
+                      <Trash2 className="h-4 w-4" strokeWidth={2} />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            {multiSelect && comboAlertText ? (
+              <div
+                className={`mb-3 rounded-xl border px-4 py-3 text-center text-[16px] font-medium ${
+                  isLight
+                    ? "border-amber-300 bg-amber-50 text-[var(--text-primary)]"
+                    : "border-amber-500/45 bg-amber-950/95 text-amber-100 shadow-[0_14px_34px_rgba(0,0,0,0.48)]"
+                }`}
+              >
+                {comboAlertText}
+              </div>
+            ) : null}
+            {activeTreatmentCategory ? (
+              <div className="max-h-[52vh] space-y-3 overflow-y-auto pb-2">
+                {visibleTreatments.map((treatment) => {
+                  const isSelected = multiSelect
+                    ? selectedTreatmentIds.includes(treatment.id)
+                    : treatment.id === selectedTreatmentId;
+
+                  return (
+                    <button
+                      key={treatment.id}
+                      type="button"
+                      onClick={() => selectTreatment(treatment.id)}
+                      className={`w-full cursor-pointer rounded-2xl border px-4 py-4 text-left transition-all ${
+                        isLight
+                          ? isSelected
+                            ? "border-[var(--premium-gold)] bg-[var(--premium-gold)]/12 shadow-[0_4px_16px_rgba(228,202,105,0.18)] ring-2 ring-[var(--premium-gold)]/20"
+                            : "border-[var(--border-light)] bg-white shadow-[0_2px_10px_rgba(0,0,0,0.04)] hover:border-[var(--premium-gold)]/35 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
+                          : isSelected
+                            ? "border-[var(--premium-gold)] bg-[rgba(228,202,105,0.1)]"
+                            : "border-white/8 bg-[#1c1c1c]"
+                      }`}
+                    >
+                      <p
+                        className={`text-[18px] leading-tight font-heading ${
+                          isLight ? "font-bold text-[var(--text-primary)]" : "text-[var(--soft-gray)]"
+                        }`}
+                      >
+                        {treatment.name}
+                      </p>
+                      <p className={`mt-1 text-[16px] ${isLight ? "text-[var(--text-secondary)]" : "text-[var(--soft-gray)]/58"}`}>
+                        {treatment.subtitle}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {SALON_TREATMENT_CATEGORIES.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => setActiveTreatmentCategory(category)}
+                    className={`flex w-full cursor-pointer items-center justify-between rounded-2xl border px-4 py-4 text-left transition-all ${
+                      isLight
+                        ? "border-[var(--border-light)] bg-white shadow-[0_2px_10px_rgba(0,0,0,0.04)] hover:border-[var(--premium-gold)]/35 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
+                        : "border-white/8 bg-[#1c1c1c] hover:bg-[#222]"
+                    }`}
+                  >
+                    <div>
+                      <p
+                        className={`text-[20px] leading-none font-heading ${
+                          isLight ? "font-bold text-[var(--text-primary)]" : "text-[var(--soft-gray)]"
+                        }`}
+                      >
+                        {category}
+                      </p>
+                      <p className={`mt-1 text-[16px] ${isLight ? "text-[var(--text-secondary)]" : "text-[var(--soft-gray)]/58"}`}>
+                        {SALON_TREATMENT_OPTIONS.filter((option) => option.category === category).length} servicios
+                      </p>
+                    </div>
+                    <ChevronRight
+                      className={`h-5 w-5 ${isLight ? "text-[var(--text-secondary)]" : "text-[var(--soft-gray)]/55"}`}
+                      strokeWidth={1.8}
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+            {multiSelect ? (
+              <div className="mt-4">
+                <button
+                  type="button"
+                  disabled={selectedTreatmentIds.length === 0}
+                  onClick={closeTreatmentModal}
+                  className={`h-12 w-full rounded-xl text-[16px] font-bold transition ${
+                    selectedTreatmentIds.length > 0
+                      ? "cursor-pointer bg-[var(--premium-gold)] text-[var(--on-accent)] shadow-[0_8px_22px_rgba(206,120,50,0.28)]"
+                      : isLight
+                        ? "cursor-not-allowed bg-[var(--border-light)] text-[var(--text-secondary)]"
+                        : "cursor-not-allowed bg-[#2a2a2a] text-white/40"
+                  }`}
+                >
+                  Continuar ({selectedTreatmentIds.length})
+                </button>
+                {selectedTreatmentIds.length > 0 ? (
+                  <p className={`mt-2 text-center text-[16px] ${isLight ? "text-[var(--text-secondary)]" : "text-[var(--soft-gray)]/55"}`}>
+                    Cuando termines de elegir, tocá Continuar.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
     </>
   );
 }

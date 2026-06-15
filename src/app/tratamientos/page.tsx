@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, Home as HomeIcon, Sparkles } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 
 import { BrandLogo } from "@/components/brand-logo";
@@ -53,19 +53,6 @@ export default function TratamientosPage() {
           ))}
         </ul>
       </main>
-
-      <nav className="fixed bottom-0 left-0 right-0 z-30">
-        <div className="flex w-full items-center justify-between border-t border-white/8 bg-black/60 px-4 py-2.5 backdrop-blur-[16px]">
-          <Link href="/" className="flex min-w-0 flex-1 flex-col items-center gap-1 text-[var(--soft-gray)]/80">
-            <HomeIcon className="h-5 w-5" strokeWidth={1.8} />
-            <span className="text-[9px] tracking-[0.12em]">Inicio</span>
-          </Link>
-          <button className="flex min-w-0 flex-1 flex-col items-center gap-1">
-            <Sparkles className="h-5 w-5 text-[var(--premium-gold)]" strokeWidth={1.9} />
-            <span className="text-[9px] tracking-[0.12em] text-[var(--premium-gold)]">Servicios</span>
-          </button>
-        </div>
-      </nav>
     </div>
   );
 }

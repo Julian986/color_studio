@@ -1,6 +1,5 @@
 "use client";
 
-import { CalendarDays, Home as HomeIcon, Percent, Sparkles, User } from "lucide-react";
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -84,31 +83,6 @@ function PagoRetornoContent() {
           </Link>
         </div>
       </main>
-
-      <nav className="fixed right-0 bottom-0 left-0 z-30">
-        <div className="flex w-full items-center justify-between border-t border-white/8 bg-black/60 px-4 py-2.5 backdrop-blur-[16px]">
-          <Link href="/" className="flex min-w-0 flex-1 flex-col items-center gap-1">
-            <HomeIcon className="h-5 w-5 text-[var(--soft-gray)]/90" strokeWidth={1.9} />
-            <span className="text-[9px] tracking-[0.12em] text-[var(--soft-gray)]/80">Inicio</span>
-          </Link>
-          <Link href="/tratamientos" className="flex min-w-0 flex-1 flex-col items-center gap-1">
-            <Sparkles className="h-5 w-5 text-[var(--soft-gray)]/90" strokeWidth={1.8} />
-            <span className="text-[9px] tracking-[0.12em] text-[var(--soft-gray)]/80">Tratamientos</span>
-          </Link>
-          <Link href="/turnos" className="flex min-w-0 flex-1 flex-col items-center gap-1">
-            <CalendarDays className="h-5 w-5 text-[var(--premium-gold)]" strokeWidth={1.8} />
-            <span className="text-[9px] tracking-[0.12em] text-[var(--premium-gold)]">Turnos</span>
-          </Link>
-          <Link href="/promociones" className="flex min-w-0 flex-1 flex-col items-center gap-1">
-            <Percent className="h-5 w-5 text-[var(--soft-gray)]/90" strokeWidth={1.8} />
-            <span className="text-[9px] tracking-[0.12em] text-[var(--soft-gray)]/80">Promos</span>
-          </Link>
-          <Link href="/perfil" className="flex min-w-0 flex-1 flex-col items-center gap-1">
-            <User className="h-5 w-5 text-[var(--soft-gray)]/90" strokeWidth={1.8} />
-            <span className="text-[9px] tracking-[0.12em] text-[var(--soft-gray)]/80">Perfil</span>
-          </Link>
-        </div>
-      </nav>
     </div>
   );
 }

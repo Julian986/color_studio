@@ -3,6 +3,7 @@ import { Montserrat, Playfair_Display } from "next/font/google";
 import { headers } from "next/headers";
 import { BRAND_LOGO_SRC } from "@/components/brand-logo";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
+import { PublicBottomNavGate } from "@/components/public-bottom-nav-gate";
 import { BRAND_NAME } from "@/lib/brand";
 import { resolvePublicSiteOrigin } from "@/lib/site-origin";
 import "./globals.css";
@@ -91,6 +92,7 @@ export default function RootLayout({
       >
         <GoogleAnalytics />
         {children}
+        <PublicBottomNavGate />
       </body>
     </html>
   );
