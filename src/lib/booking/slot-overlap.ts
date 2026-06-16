@@ -2,12 +2,19 @@ import type { Db, ObjectId } from "mongodb";
 import { formatInTimeZone } from "date-fns-tz";
 
 import { RESERVATION_TZ } from "@/lib/booking/public-slot-lead";
+import { SALON_TURNO_GAP_MINUTES } from "@/lib/booking/booking-capacity";
 import { findSalonTreatmentById } from "@/lib/treatments/catalog";
 
 const COLLECTION = "reservations";
 const ACTIVE_STATUSES = ["confirmed"] as const;
 
 export type IntervalMs = { startMs: number; endMs: number };
+
+/** Extiende el intervalo con la brecha posterior entre turnos (reserva web). */
+export function intervalWithTurnGap(interval: IntervalMs): IntervalMs {
+  if (SALON_TURNO_GAP_MINUTES <= 0) return interval;
+  return { startMs: interval.startMs, endMs: interval.endMs + SALON_TURNO_GAP_MINUTES * 60_000 };
+}
 
 export function intervalsOverlap(a: IntervalMs, b: IntervalMs): boolean {
   return a.startMs < b.endMs && a.endMs > b.startMs;
@@ -74,7 +81,7 @@ export async function loadBusyIntervalsMs(
     const startsAt = r.startsAt instanceof Date ? r.startsAt : new Date(String(r.startsAt));
     const startMs = startsAt.getTime();
     const dur = durationForReservationRow(r as { durationMinutes?: unknown; treatmentId?: unknown });
-    return { startMs, endMs: startMs + dur * 60_000 };
+    return intervalWithTurnGap({ startMs, endMs: startMs + dur * 60_000 });
   });
 }
 
@@ -140,7 +147,7 @@ export function filterSlotsBySalonCapacity(
   return slots.filter((timeLocal) => {
     const slot = slotIntervalMs(dateKey, timeLocal, durationMinutes);
     if (!slot) return false;
-    return canPlaceReservationSlot(dateKey, slot, busy, getEffectiveCap);
+    return canPlaceReservationSlot(dateKey, intervalWithTurnGap(slot), busy, getEffectiveCap);
   });
 }
 
@@ -152,7 +159,7 @@ export async function reservationWouldExceedSalonCapacity(
   excludeReservationId?: ObjectId,
 ): Promise<boolean> {
   const busy = await loadBusyIntervalsMs(db, dateKey, excludeReservationId);
-  return !canPlaceReservationSlot(dateKey, candidate, busy, getEffectiveCap);
+  return !canPlaceReservationSlot(dateKey, intervalWithTurnGap(candidate), busy, getEffectiveCap);
 }
 
 export type PanelSlotOverlapHit = {

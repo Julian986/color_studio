@@ -4,11 +4,11 @@ import { ChevronLeft, X } from "lucide-react";
 import { useState } from "react";
 
 import { SALON_TREATMENT_OPTIONS } from "@/lib/booking/salon-availability";
-import { PROVISIONAL_SCHEDULE_NOTE } from "@/lib/brand";
 import {
+  BOOKING_PRICE_PENDING_NOTE,
   MAX_SERVICES_PER_BOOKING,
-  findSalonTreatmentById,
   normalizeServiceIds,
+  serviceDurationLabel,
   totalDurationMinutesForServiceIds,
 } from "@/lib/treatments/catalog";
 
@@ -22,9 +22,9 @@ function formatDurationLabel(totalMinutes: number): string {
   if (totalMinutes <= 0) return "";
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
-  if (h > 0 && m > 0) return `~${h} h ${m} min en total (provisional)`;
-  if (h > 0) return `~${h} h en total (provisional)`;
-  return `~${m} min en total (provisional)`;
+  if (h > 0 && m > 0) return `${h} h ${m} min en total`;
+  if (h > 0) return `${h} h en total`;
+  return `${m} min en total`;
 }
 
 export function ColorStudioServicePickerSheet({
@@ -70,16 +70,16 @@ export function ColorStudioServicePickerSheet({
         </button>
       </header>
 
-      <p className="px-4 py-3 text-center text-[11px] leading-relaxed text-[var(--soft-gray)]/72">
+      {/* <p className="px-4 py-3 text-center text-[11px] leading-relaxed text-[var(--soft-gray)]/72">
         {PROVISIONAL_SCHEDULE_NOTE}
       </p>
       <p className="px-4 pb-2 text-center text-[12px] text-[var(--soft-gray)]/78">
         Podés elegir hasta {MAX_SERVICES_PER_BOOKING} servicios en la misma visita (ej. corte + color).
-      </p>
+      </p> */}
 
       <ul className="flex-1 space-y-2 overflow-y-auto px-4">
         {SALON_TREATMENT_OPTIONS.map((opt) => {
-          const detail = findSalonTreatmentById(opt.id);
+          const duration = serviceDurationLabel(opt.id);
           const isSelected = draftIds.includes(opt.id);
           const disabled = !isSelected && atMax;
           return (
@@ -97,9 +97,8 @@ export function ColorStudioServicePickerSheet({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[16px] font-medium text-[var(--soft-gray)]">{opt.name}</p>
-                    <p className="mt-1 text-[12px] text-[var(--soft-gray)]/62">{opt.subtitle}</p>
-                    {detail?.priceLabel ? (
-                      <p className="mt-1 text-[11px] text-[var(--premium-gold)]/88">{detail.priceLabel}</p>
+                    {duration ? (
+                      <p className="mt-1 text-[12px] text-[var(--soft-gray)]/62">{duration}</p>
                     ) : null}
                   </div>
                   <span
@@ -120,6 +119,9 @@ export function ColorStudioServicePickerSheet({
       </ul>
 
       <div className="border-t border-white/8 px-4 py-4 pb-8">
+        <p className="mb-3 text-center text-[11px] leading-relaxed text-[var(--soft-gray)]/55">
+          {BOOKING_PRICE_PENDING_NOTE}
+        </p>
         {draftIds.length > 0 && totalMinutes > 0 ? (
           <p className="mb-3 text-center text-[12px] text-[var(--premium-gold)]/90">
             {formatDurationLabel(totalMinutes)}

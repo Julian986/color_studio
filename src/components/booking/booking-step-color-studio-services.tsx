@@ -1,10 +1,10 @@
 "use client";
 
 import { SALON_TREATMENT_OPTIONS } from "@/lib/booking/salon-availability";
-import { PROVISIONAL_SCHEDULE_NOTE } from "@/lib/brand";
 import {
+  BOOKING_PRICE_PENDING_NOTE,
   MAX_SERVICES_PER_BOOKING,
-  findSalonTreatmentById,
+  serviceDurationLabel,
   totalDurationMinutesForServiceIds,
 } from "@/lib/treatments/catalog";
 
@@ -14,13 +14,13 @@ type BookingStepColorStudioServicesProps = {
   comboAlertText?: string | null;
 };
 
-function formatDurationLabel(totalMinutes: number): string {
+function formatTotalDurationLabel(totalMinutes: number): string {
   if (totalMinutes <= 0) return "";
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
-  if (h > 0 && m > 0) return `~${h} h ${m} min en total (provisional)`;
-  if (h > 0) return `~${h} h en total (provisional)`;
-  return `~${m} min en total (provisional)`;
+  if (h > 0 && m > 0) return `${h} h ${m} min en total`;
+  if (h > 0) return `${h} h en total`;
+  return `${m} min en total`;
 }
 
 export function BookingStepColorStudioServices({
@@ -33,11 +33,6 @@ export function BookingStepColorStudioServices({
 
   return (
     <div className="space-y-4">
-      <p className="text-center text-[14px] leading-relaxed text-gray-600">{PROVISIONAL_SCHEDULE_NOTE}</p>
-      <p className="text-center text-[15px] text-gray-700">
-        Podés elegir hasta {MAX_SERVICES_PER_BOOKING} servicios en la misma visita (ej. corte + color).
-      </p>
-
       {comboAlertText ? (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-center text-[16px] text-gray-900">
           {comboAlertText}
@@ -45,13 +40,13 @@ export function BookingStepColorStudioServices({
       ) : null}
 
       {selectedServiceIds.length > 0 && totalMinutes > 0 ? (
-        <p className="text-center text-[15px] font-medium text-[#B88E2F]">
-          {formatDurationLabel(totalMinutes)}
+        <p className="text-center text-[15px] font-semibold text-[#B88E2F]">
+          {formatTotalDurationLabel(totalMinutes)}
         </p>
       ) : null}
 
       {SALON_TREATMENT_OPTIONS.map((treatment) => {
-        const detail = findSalonTreatmentById(treatment.id);
+        const duration = serviceDurationLabel(treatment.id);
         const isSelected = selectedServiceIds.includes(treatment.id);
         const disabled = !isSelected && atMax;
 
@@ -68,9 +63,8 @@ export function BookingStepColorStudioServices({
             }`}
           >
             <h2 className="text-xl font-semibold text-gray-900">{treatment.name}</h2>
-            <p className="mt-1 text-[#666666]">{treatment.subtitle}</p>
-            {detail?.priceLabel ? (
-              <p className="mt-1 text-[14px] font-medium text-[#B88E2F]">{detail.priceLabel}</p>
+            {duration ? (
+              <p className="mt-1 text-[15px] font-medium text-gray-600">{duration}</p>
             ) : null}
             {isSelected ? (
               <span className="mt-3 inline-flex w-fit rounded-full bg-[#B88E2F] px-3 py-1 text-[14px] font-semibold text-white">
@@ -80,6 +74,10 @@ export function BookingStepColorStudioServices({
           </button>
         );
       })}
+
+      <p className="border-t border-gray-100 pt-4 text-center text-[13px] leading-relaxed text-gray-500">
+        {BOOKING_PRICE_PENDING_NOTE}
+      </p>
     </div>
   );
 }

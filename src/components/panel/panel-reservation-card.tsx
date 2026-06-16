@@ -153,7 +153,7 @@ export const PanelReservationCard = forwardRef<HTMLElement, PanelReservationCard
         ].join(" ")}
       >
         <div className="p-4 pb-3">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-3">
             <span
               className={[
                 "rounded-full px-3.5 py-1.5 text-[16px] font-semibold leading-none tabular-nums tracking-tight",
@@ -165,7 +165,7 @@ export const PanelReservationCard = forwardRef<HTMLElement, PanelReservationCard
             {duration ? (
               <span
                 className={[
-                  "shrink-0 text-[15px] font-semibold tabular-nums tracking-tight",
+                  "shrink-0 text-right text-[14px] font-semibold leading-snug tabular-nums",
                   focused ? "text-[#8B6914]" : "text-gray-600",
                 ].join(" ")}
               >
