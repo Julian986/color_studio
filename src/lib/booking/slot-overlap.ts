@@ -85,13 +85,6 @@ export async function loadBusyIntervalsMs(
   });
 }
 
-function capacityBoundaryInstantsMs(dateKey: string): number[] {
-  return [
-    new Date(`${dateKey}T09:00:00-03:00`).getTime(),
-    new Date(`${dateKey}T11:31:00-03:00`).getTime(),
-  ];
-}
-
 /**
  * ¿Se puede agregar este intervalo sin superar la capacidad por franja?
  * Una clienta a la vez. `getEffectiveCap` puede reducir cupos por bloqueos de agenda.
@@ -110,11 +103,6 @@ export function canPlaceReservationSlot(
     if (s < e) {
       points.add(s);
       points.add(e);
-    }
-  }
-  for (const bt of capacityBoundaryInstantsMs(dateKey)) {
-    if (bt > candidate.startMs && bt < candidate.endMs) {
-      points.add(bt);
     }
   }
 

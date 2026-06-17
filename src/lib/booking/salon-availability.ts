@@ -70,7 +70,7 @@ function lastServiceEndMinutesForWeekday(weekday: number): number {
  * Agenda Yanina (ART), provisional:
  * - Mar y jue: 10:00–16:00 (último inicio según duración del servicio)
  * - Mié y vie: 9:30–14:30
- * - Sáb: 9:30–13:00
+ * - Sáb: 9:00–13:00
  * - Lun y dom: cerrado
  */
 const availableTimesByWeekday: Record<number, string[]> = {
@@ -80,7 +80,7 @@ const availableTimesByWeekday: Record<number, string[]> = {
   3: buildStepSlots(9, 30, 14, 30),
   4: buildStepSlots(10, 0, 16, 0),
   5: buildStepSlots(9, 30, 14, 30),
-  6: buildStepSlots(9, 30, 13, 0),
+  6: buildStepSlots(9, 0, 13, 0),
 };
 
 const availableTimesByDateOverride: Record<string, string[]> = {};
@@ -112,7 +112,7 @@ function isSalonCalendarTestMode(): boolean {
 }
 
 /** Horario de prueba para dom/lun (mismo que sábado web). */
-const TEST_WEB_SLOTS_SUN_MON = buildStepSlots(9, 30, 13, 0);
+const TEST_WEB_SLOTS_SUN_MON = buildStepSlots(9, 0, 13, 0);
 
 function slotsForWeekday(weekday: number): string[] {
   const normal = availableTimesByWeekday[weekday] ?? [];

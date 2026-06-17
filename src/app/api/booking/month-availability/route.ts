@@ -5,7 +5,12 @@ import {
   buildSalonCalendarItems,
   getAvailableTimesForDate,
 } from "@/lib/booking/salon-availability";
-import { computeBookableSlots, computeBookableSlotsForTreatmentIds } from "@/lib/booking/compute-bookable-slots";
+import {
+  computeBookableSlots,
+  computeBookableSlotsForTreatmentIds,
+  computePublicTemplateSlots,
+  computePublicTemplateSlotsForTreatmentIds,
+} from "@/lib/booking/compute-bookable-slots";
 import { parseBookingSlotScope, requiresPanelAuth } from "@/lib/booking/parse-booking-scope";
 import { getDb } from "@/lib/mongodb";
 import { verifyPanelCookie } from "@/lib/panel-turnos-auth";
@@ -56,9 +61,21 @@ export async function GET(request: Request) {
   }
 
   try {
-    const db = await getDb();
     const now = new Date();
     const keys = buildSalonCalendarItems(year, monthIndex).map((d) => d.value);
+
+    if (scope === "public") {
+      const entries = keys.map((dateKey) => {
+        const slots =
+          serviceIds.length > 0
+            ? computePublicTemplateSlotsForTreatmentIds({ dateKey, treatmentIds: serviceIds, now })
+            : computePublicTemplateSlots({ dateKey, treatmentId, now });
+        return [dateKey, slots.length > 0] as const;
+      });
+      return NextResponse.json({ availability: Object.fromEntries(entries) });
+    }
+
+    const db = await getDb();
     const entries = await Promise.all(
       keys.map(async (dateKey) => {
         if (scope === "panel_nuevo") {

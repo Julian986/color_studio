@@ -165,7 +165,7 @@ export default function ContactoPage() {
             <p>Lunes a Miércoles · 08:00–11:00 · 15:00–17:00</p>
             <p>Jueves · 08:00–11:00 · 15:00–19:00</p>
             <p>Viernes · 08:00–11:00 · 15:00–17:00</p>
-            <p>Sábados · 08:00–12:00</p>
+            <p>Sábados · 09:00–13:00</p>
           </div>
         </section>
         */}
