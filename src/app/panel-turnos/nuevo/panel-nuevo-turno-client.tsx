@@ -12,6 +12,7 @@ import {
   SALON_TREATMENT_OPTIONS,
   formatSalonDisplayDate,
   isLikelyWhatsappNumber,
+  PANEL_NUEVO_TIME_RANGE_LABEL,
 } from "@/lib/booking/salon-availability";
 import type { PanelSlotOverlapHit } from "@/lib/booking/slot-overlap";
 import {
@@ -104,14 +105,6 @@ export function PanelNuevoTurnoClient() {
       cancelled = true;
     };
   }, [selectedDate, selectedServiceIds]);
-
-  useEffect(() => {
-    if (!selectedDate || !selectedTime || selectedServiceIds.length === 0) return;
-    if (remoteSlots === undefined || remoteSlots === null) return;
-    if (!remoteSlots.includes(selectedTime)) {
-      setSelectedTime("");
-    }
-  }, [selectedDate, selectedTime, selectedServiceIds, remoteSlots]);
 
   useEffect(() => {
     if (!serviceLimitHint) return;
@@ -214,8 +207,14 @@ export function PanelNuevoTurnoClient() {
 
   const stepMeta = (() => {
     if (wizardStep === 1) return { title: "Nuevo turno", subtitle: "Elegí el servicio" };
-    if (wizardStep === 2) return { title: "Elegí la fecha", subtitle: "Seleccioná un día disponible" };
-    if (wizardStep === 3) return { title: "Elegí el horario", subtitle: formatSalonDisplayDate(selectedDate) || "Horario disponible" };
+    if (wizardStep === 2) return { title: "Elegí la fecha", subtitle: "Cualquier día del mes" };
+    if (wizardStep === 3)
+      return {
+        title: "Elegí el horario",
+        subtitle: selectedDate
+          ? `${formatSalonDisplayDate(selectedDate)} · ${PANEL_NUEVO_TIME_RANGE_LABEL}`
+          : PANEL_NUEVO_TIME_RANGE_LABEL,
+      };
     if (wizardStep === 4) return { title: "Datos del cliente", subtitle: "Para confirmar el turno en agenda" };
     return { title: "Confirmar turno", subtitle: "Revisá el resumen antes de guardar" };
   })();

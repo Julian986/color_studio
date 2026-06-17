@@ -86,21 +86,22 @@ const availableTimesByWeekday: Record<number, string[]> = {
 const availableTimesByDateOverride: Record<string, string[]> = {};
 
 /**
- * Plantilla ampliada solo para /panel-turnos/nuevo (misma apertura, cierre más tarde).
- * Permite cargar turnos fuera del horario web (ej. viernes después de las 14:30).
+ * Alta manual en panel (/panel-turnos/nuevo): cualquier día, horarios en este rango.
+ * Último inicio posible: 19:30 (cierre exclusivo a las 20:00).
  */
-const PANEL_NUEVO_CLOSE_H = 18;
+const PANEL_NUEVO_OPEN_H = 8;
+const PANEL_NUEVO_OPEN_M = 0;
+const PANEL_NUEVO_CLOSE_H = 20;
 const PANEL_NUEVO_CLOSE_M = 0;
 
-const panelNuevoTimesByWeekday: Record<number, string[]> = {
-  0: [],
-  1: [],
-  2: buildStepSlots(10, 0, PANEL_NUEVO_CLOSE_H, PANEL_NUEVO_CLOSE_M),
-  3: buildStepSlots(9, 30, PANEL_NUEVO_CLOSE_H, PANEL_NUEVO_CLOSE_M),
-  4: buildStepSlots(10, 0, PANEL_NUEVO_CLOSE_H, PANEL_NUEVO_CLOSE_M),
-  5: buildStepSlots(9, 30, PANEL_NUEVO_CLOSE_H, PANEL_NUEVO_CLOSE_M),
-  6: buildStepSlots(9, 30, PANEL_NUEVO_CLOSE_H, PANEL_NUEVO_CLOSE_M),
-};
+export const PANEL_NUEVO_TIME_RANGE_LABEL = `${pad2(PANEL_NUEVO_OPEN_H)}:${pad2(PANEL_NUEVO_OPEN_M)} a ${pad2(PANEL_NUEVO_CLOSE_H)}:${pad2(PANEL_NUEVO_CLOSE_M)}`;
+
+const PANEL_NUEVO_TIME_SLOTS = buildStepSlots(
+  PANEL_NUEVO_OPEN_H,
+  PANEL_NUEVO_OPEN_M,
+  PANEL_NUEVO_CLOSE_H,
+  PANEL_NUEVO_CLOSE_M,
+);
 
 /** Temporal: activar con `NEXT_PUBLIC_SALON_CALENDAR_TEST_MODE=true` (cliente + servidor). */
 function isSalonCalendarTestMode(): boolean {
@@ -113,31 +114,22 @@ function isSalonCalendarTestMode(): boolean {
 /** Horario de prueba para dom/lun (mismo que sábado web). */
 const TEST_WEB_SLOTS_SUN_MON = buildStepSlots(9, 30, 13, 0);
 
-function slotsForWeekday(weekday: number, mode: "web" | "panel_nuevo"): string[] {
-  const map = mode === "panel_nuevo" ? panelNuevoTimesByWeekday : availableTimesByWeekday;
-  const normal = map[weekday] ?? [];
+function slotsForWeekday(weekday: number): string[] {
+  const normal = availableTimesByWeekday[weekday] ?? [];
   if (normal.length > 0) return normal;
   if (isSalonCalendarTestMode() && (weekday === 0 || weekday === 1)) {
-    return mode === "panel_nuevo"
-      ? buildStepSlots(9, 30, PANEL_NUEVO_CLOSE_H, PANEL_NUEVO_CLOSE_M)
-      : TEST_WEB_SLOTS_SUN_MON;
+    return TEST_WEB_SLOTS_SUN_MON;
   }
   return [];
 }
 
-/** Horarios del picker en alta manual (/panel-turnos/nuevo), sin tope de cierre web. */
+/** Horarios del picker en alta manual (/panel-turnos/nuevo): cualquier día, rango fijo. */
 export function getPanelNuevoPickerTimeSlots(value: string): string[] {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return [];
   const date = parseDateKey(value);
-  const today = startOfDay(new Date());
-
-  if (startOfDay(date) < today) {
-    return [];
-  }
-  if (isArgentinaPublicHoliday(value)) {
-    return [];
-  }
-
-  return slotsForWeekday(date.getDay(), "panel_nuevo");
+  if (Number.isNaN(date.getTime())) return [];
+  return PANEL_NUEVO_TIME_SLOTS;
 }
 
 export function getLastServiceEndMinutesForDate(dateKey: string): number {
@@ -210,7 +202,7 @@ export function getAvailableTimesForDate(value: string) {
     return override;
   }
 
-  return slotsForWeekday(date.getDay(), "web");
+  return slotsForWeekday(date.getDay());
 }
 
 export type SalonCalendarItem = {

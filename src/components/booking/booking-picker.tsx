@@ -36,7 +36,7 @@ export type BookingPickerProps = {
    * `undefined`: usar `resolveTimeSlots` / plantilla. `null`: cargando.
    */
   remoteTimeSlots?: string[] | null;
-  /** `public`: reserva web. `panel`: reprogramar. `panel_nuevo`: alta manual (hasta 18:00). */
+  /** `public`: reserva web. `panel`: reprogramar. `panel_nuevo`: alta manual sin restricciones. */
   bookingContext?: "public" | "panel" | "panel_nuevo";
   bookingFocusRef?: React.RefObject<HTMLDivElement | null>;
   treatmentFirstHintVisible: boolean;
@@ -59,6 +59,8 @@ export type BookingPickerProps = {
   wizardSection?: "date" | "time";
 };
 
+const EMPTY_SERVICE_IDS: string[] = [];
+
 export function BookingPicker({
   selectedTreatmentId,
   onTreatmentIdChange,
@@ -75,7 +77,7 @@ export function BookingPicker({
   selectedCountLabel,
   selectedDurationLabel,
   summaryTitle,
-  monthAvailabilityServiceIds = [],
+  monthAvailabilityServiceIds = EMPTY_SERVICE_IDS,
   multiSelect = false,
   selectedTreatmentIds = [],
   onToggleTreatmentId,
@@ -91,11 +93,20 @@ export function BookingPicker({
   const isPanelContext = bookingContext === "panel" || bookingContext === "panel_nuevo";
   const isLight = Boolean(wizardSection) || bookingContext === "public" || bookingContext === "panel" || bookingContext === "panel_nuevo";
   const multiService = Boolean(onServiceIdsChange);
-  const effectiveServiceIds = multiService
-    ? normalizeServiceIds(selectedServiceIds)
-    : selectedTreatmentId
-      ? [selectedTreatmentId]
-      : [];
+  const effectiveServiceIds = useMemo(
+    () =>
+      multiService
+        ? normalizeServiceIds(selectedServiceIds)
+        : selectedTreatmentId
+          ? [selectedTreatmentId]
+          : EMPTY_SERVICE_IDS,
+    [multiService, selectedServiceIds, selectedTreatmentId],
+  );
+  const monthAvailabilityServiceKey = useMemo(
+    () => monthAvailabilityServiceIds.join(","),
+    [monthAvailabilityServiceIds],
+  );
+  const effectiveServiceIdsKey = useMemo(() => effectiveServiceIds.join(","), [effectiveServiceIds]);
   const hasServiceSelection = effectiveServiceIds.length > 0;
   const [visibleMonthDate, setVisibleMonthDate] = useState(() => {
     const today = new Date();
@@ -128,9 +139,14 @@ export function BookingPicker({
     [visibleMonthDate],
   );
   const visibleMonthLabel = `${salonMonthNames[visibleMonthDate.getMonth()]} ${visibleMonthDate.getFullYear()}`;
+  const visibleMonthKey = `${visibleMonthDate.getFullYear()}-${visibleMonthDate.getMonth()}`;
   const todayKey = argentinaTodayDateKey();
 
   useEffect(() => {
+    if (bookingContext === "panel_nuevo") {
+      setMonthAvailability(undefined);
+      return;
+    }
     if (!hasServiceSelection && monthAvailabilityServiceIds.length === 0) {
       setMonthAvailability(undefined);
       return;
@@ -176,7 +192,14 @@ export function BookingPicker({
       cancelled = true;
       ac.abort();
     };
-  }, [hasServiceSelection, selectedTreatmentId, effectiveServiceIds, visibleMonthDate, bookingContext, monthAvailabilityServiceIds]);
+  }, [
+    bookingContext,
+    hasServiceSelection,
+    selectedTreatmentId,
+    effectiveServiceIdsKey,
+    visibleMonthKey,
+    monthAvailabilityServiceKey,
+  ]);
 
   useEffect(() => {
     if (!selectedDate || !hasServiceSelection) return;
@@ -426,7 +449,10 @@ export function BookingPicker({
             const isSelected = day.value === selectedDate;
             const isToday = day.value === todayKey && day.isCurrentMonth;
             const isBeforeMinPublic = Boolean(minPublicDateKey && day.value < minPublicDateKey);
-            const dayOpen = day.isAvailable && !isBeforeMinPublic;
+            const dayOpen =
+              bookingContext === "panel_nuevo"
+                ? day.isCurrentMonth
+                : day.isAvailable && !isBeforeMinPublic;
             const monthAvailReady = monthAvailability !== undefined && monthAvailability !== null;
             const fullyBooked =
               !isPanelContext &&
@@ -471,14 +497,14 @@ export function BookingPicker({
                 title={
                   fullyBooked
                     ? "Sin cupos para este servicio (ocupado o bloqueado)."
-                    : !day.isAvailable && day.isCurrentMonth
+                    : !dayOpen && day.isCurrentMonth && bookingContext !== "panel_nuevo"
                       ? "Día no disponible (cerrado o feriado)."
                       : undefined
                 }
                 aria-label={
                   fullyBooked
                     ? `${day.dayNumber}, sin cupos`
-                    : !day.isAvailable && day.isCurrentMonth
+                    : !dayOpen && day.isCurrentMonth && bookingContext !== "panel_nuevo"
                       ? `${day.dayNumber}, no disponible`
                       : undefined
                 }

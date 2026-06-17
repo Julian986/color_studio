@@ -4,7 +4,6 @@ import { NextResponse } from "next/server";
 import {
   buildSalonCalendarItems,
   getAvailableTimesForDate,
-  getPanelNuevoPickerTimeSlots,
 } from "@/lib/booking/salon-availability";
 import { computeBookableSlots, computeBookableSlotsForTreatmentIds } from "@/lib/booking/compute-bookable-slots";
 import { parseBookingSlotScope, requiresPanelAuth } from "@/lib/booking/parse-booking-scope";
@@ -63,7 +62,7 @@ export async function GET(request: Request) {
     const entries = await Promise.all(
       keys.map(async (dateKey) => {
         if (scope === "panel_nuevo") {
-          return [dateKey, getPanelNuevoPickerTimeSlots(dateKey).length > 0] as const;
+          return [dateKey, true] as const;
         }
         if (scope === "panel") {
           return [dateKey, getAvailableTimesForDate(dateKey).length > 0] as const;
