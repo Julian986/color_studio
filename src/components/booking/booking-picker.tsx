@@ -162,12 +162,7 @@ export function BookingPicker({
       year: String(y),
       monthIndex: String(m),
       treatmentId: primaryTreatmentIdFromServiceIds(idsForApi) || selectedTreatmentId,
-      scope:
-        bookingContext === "panel_nuevo"
-          ? "panel_nuevo"
-          : bookingContext === "panel"
-            ? "panel"
-            : "public",
+      scope: bookingContext === "panel" ? "panel" : "public",
     });
     if (idsForApi.length > 0) {
       q.set("serviceIds", idsForApi.join(","));
