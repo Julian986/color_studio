@@ -8,8 +8,6 @@ import { createPortal } from "react-dom";
 
 import { trackNavClick } from "@/lib/analytics/track";
 
-const GOLD = "#B88E2F";
-
 export const APP_BOTTOM_NAV_HEIGHT_CLASS = "h-16";
 
 const nav = [
@@ -33,17 +31,24 @@ export function AppBottomNavBar() {
           <Link
             key={href}
             href={href}
-            className="flex flex-1 flex-col items-center justify-center gap-1"
+            className="flex flex-1 flex-col items-center justify-center"
             onClick={() => trackNavClick(label)}
           >
-            <Icon
-              className="app-bottom-nav__icon"
-              strokeWidth={1.8}
-              fill="none"
-              style={{ color: active ? GOLD : "#9CA3AF" }}
-            />
-            <span className="app-bottom-nav__label" style={{ color: active ? GOLD : "#6B7280" }}>
-              {label}
+            <span
+              className={`flex flex-col items-center justify-center gap-1 rounded-2xl px-2.5 py-1.5 transition-colors ${
+                active ? "bg-[#B88E2F]/12" : ""
+              }`}
+            >
+              <Icon
+                className={`app-bottom-nav__icon ${active ? "text-[#B88E2F]" : "text-gray-500"}`}
+                strokeWidth={active ? 2.2 : 1.75}
+                fill="none"
+              />
+              <span
+                className={`app-bottom-nav__label ${active ? "font-semibold text-[#996515]" : "text-gray-600"}`}
+              >
+                {label}
+              </span>
             </span>
           </Link>
         );
@@ -56,7 +61,7 @@ function AppBottomNavShell() {
   return (
     <nav
       aria-label="Navegación principal"
-      className="app-bottom-nav fixed right-0 bottom-0 left-0 z-50 border-t border-gray-100 bg-white pb-[env(safe-area-inset-bottom)]"
+      className="app-bottom-nav fixed right-0 bottom-0 left-0 z-50 border-t border-gray-200/90 bg-white pb-[env(safe-area-inset-bottom)]"
     >
       <AppBottomNavBar />
     </nav>

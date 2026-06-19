@@ -43,6 +43,10 @@ body {
 .app-bottom-nav {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  background: #ffffff;
+  box-shadow:
+    0 -8px 32px rgba(0, 0, 0, 0.1),
+    0 -1px 0 rgba(0, 0, 0, 0.06);
 }
 
 .app-bottom-nav__inner {
@@ -64,4 +68,24 @@ body {
   font-weight: 500 !important;
   letter-spacing: 0.06em;
   white-space: nowrap;
+}
+
+@keyframes home-cta-glow {
+  0%,
+  100% {
+    box-shadow: 0 12px 36px rgba(228, 202, 105, 0.38);
+  }
+  50% {
+    box-shadow: 0 14px 42px rgba(228, 202, 105, 0.52);
+  }
+}
+
+.home-cta-reservar {
+  animation: home-cta-glow 2.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-cta-reservar {
+    animation: none;
+  }
 }

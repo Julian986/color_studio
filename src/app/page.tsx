@@ -65,7 +65,7 @@ function HomeContent() {
         }}
       />
 
-      <main className="relative z-20 mx-auto min-h-screen w-full max-w-md px-5 pt-20 pb-28">
+      <main className="relative z-20 mx-auto flex min-h-screen w-full max-w-md flex-col px-5 pt-20 pb-28">
         <header className="flex justify-center">
           <div className="inline-flex flex-col items-center gap-1 text-center">
             <BrandLogo size="header" />
@@ -87,7 +87,7 @@ function HomeContent() {
             <div className="mx-auto flex w-[84%] flex-col gap-3">
               <Link
                 href="/turnos"
-                className="flex h-[52px] items-center justify-center rounded-full bg-[var(--premium-gold)] px-6 text-[16px] font-semibold tracking-[0.14em] text-[var(--on-accent)] shadow-[0_16px_36px_rgba(0,0,0,0.45)]"
+                className="home-cta-reservar flex h-[58px] items-center justify-center rounded-full bg-gradient-to-r from-[var(--premium-gold)] via-[#d4b04a] to-[var(--accent-orange)] px-7 text-[17px] font-bold tracking-[0.12em] text-[var(--on-accent)] transition-transform duration-200 active:scale-[0.98]"
               >
                 Reservar turno
               </Link>
@@ -115,7 +115,7 @@ function HomeContent() {
             </Link>
           </section>
 
-          <section className="mx-auto w-[84%]">
+          <section className="mx-auto mt-auto w-[84%] pt-12">
             <div className="mb-3 text-[10px] tracking-[0.24em] text-[var(--soft-gray)]/70">
               DESTACADO
             </div>
