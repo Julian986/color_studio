@@ -15,6 +15,7 @@ import {
   PANEL_NUEVO_TIME_RANGE_LABEL,
 } from "@/lib/booking/salon-availability";
 import type { PanelSlotOverlapHit } from "@/lib/booking/slot-overlap";
+import type { PanelCustomerSuggestion } from "@/lib/reservations/panel-customer-directory";
 import {
   MAX_SERVICES_PER_BOOKING,
   normalizeServiceIds,
@@ -39,7 +40,14 @@ export function PanelNuevoTurnoClient() {
   const [remoteSlots, setRemoteSlots] = useState<string[] | null | undefined>(undefined);
   const [panelSlotOverlaps, setPanelSlotOverlaps] = useState<Record<string, PanelSlotOverlapHit[]>>({});
   const [serviceLimitHint, setServiceLimitHint] = useState<string | null>(null);
+  const [recentCustomers, setRecentCustomers] = useState<PanelCustomerSuggestion[]>([]);
+  const [recentCustomersLoading, setRecentCustomersLoading] = useState(false);
+  const [nameSuggestions, setNameSuggestions] = useState<PanelCustomerSuggestion[]>([]);
+  const [nameSuggestionsOpen, setNameSuggestionsOpen] = useState(false);
+  const [nameSearchLoading, setNameSearchLoading] = useState(false);
   const bookingFocusRef = useRef<HTMLDivElement | null>(null);
+  const nameSearchAbortRef = useRef<AbortController | null>(null);
+  const skipNameSearchRef = useRef(false);
 
   const selectedServices = useMemo(
     () =>
@@ -72,6 +80,89 @@ export function PanelNuevoTurnoClient() {
   );
   const showWhatsappInvalidHint =
     customerPhone.trim().length >= 8 && !isLikelyWhatsappNumber(customerPhone);
+
+  useEffect(() => {
+    if (wizardStep !== 4) return;
+    let cancelled = false;
+    setRecentCustomersLoading(true);
+    fetch("/api/panel-turnos/customers", { credentials: "same-origin" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        return res.json() as Promise<{ customers?: PanelCustomerSuggestion[] }>;
+      })
+      .then((data) => {
+        if (!cancelled) {
+          setRecentCustomers(Array.isArray(data.customers) ? data.customers : []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setRecentCustomers([]);
+      })
+      .finally(() => {
+        if (!cancelled) setRecentCustomersLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [wizardStep]);
+
+  useEffect(() => {
+    if (wizardStep !== 4) return;
+    const q = customerName.trim();
+    if (skipNameSearchRef.current) {
+      skipNameSearchRef.current = false;
+      return;
+    }
+    if (q.length < 2) {
+      nameSearchAbortRef.current?.abort();
+      setNameSuggestions([]);
+      setNameSuggestionsOpen(false);
+      setNameSearchLoading(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      nameSearchAbortRef.current?.abort();
+      const ac = new AbortController();
+      nameSearchAbortRef.current = ac;
+      setNameSearchLoading(true);
+      fetch(`/api/panel-turnos/customers?q=${encodeURIComponent(q)}`, {
+        credentials: "same-origin",
+        signal: ac.signal,
+      })
+        .then(async (res) => {
+          if (!res.ok) throw new Error(String(res.status));
+          return res.json() as Promise<{ customers?: PanelCustomerSuggestion[] }>;
+        })
+        .then((data) => {
+          const items = Array.isArray(data.customers) ? data.customers : [];
+          setNameSuggestions(items);
+          setNameSuggestionsOpen(items.length > 0);
+        })
+        .catch(() => {
+          if (!ac.signal.aborted) {
+            setNameSuggestions([]);
+            setNameSuggestionsOpen(false);
+          }
+        })
+        .finally(() => {
+          if (!ac.signal.aborted) setNameSearchLoading(false);
+        });
+    }, 280);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [customerName, wizardStep]);
+
+  const applyPanelCustomer = useCallback((customer: PanelCustomerSuggestion) => {
+    skipNameSearchRef.current = true;
+    setCustomerName(customer.customerName);
+    setCustomerPhone(customer.customerPhone);
+    setWhatsappOptIn(true);
+    setNameSuggestions([]);
+    setNameSuggestionsOpen(false);
+  }, []);
 
   useEffect(() => {
     if (!selectedDate || selectedServiceIds.length === 0) {
@@ -215,7 +306,7 @@ export function PanelNuevoTurnoClient() {
           ? `${formatSalonDisplayDate(selectedDate)} · ${PANEL_NUEVO_TIME_RANGE_LABEL}`
           : PANEL_NUEVO_TIME_RANGE_LABEL,
       };
-    if (wizardStep === 4) return { title: "Datos del cliente", subtitle: "Para confirmar el turno en agenda" };
+    if (wizardStep === 4) return { title: "Datos del cliente", subtitle: "Recientes o buscá por nombre" };
     return { title: "Confirmar turno", subtitle: "Revisá el resumen antes de guardar" };
   })();
 
@@ -324,7 +415,32 @@ export function PanelNuevoTurnoClient() {
 
       {wizardStep === 4 ? (
         <div className="space-y-4">
-          <div>
+          {recentCustomersLoading ? (
+            <p className="text-[14px] text-gray-500">Cargando clientes recientes…</p>
+          ) : recentCustomers.length > 0 ? (
+            <div>
+              <p className="text-[13px] font-semibold tracking-wide text-gray-500 uppercase">
+                Clientes recientes
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {recentCustomers.map((customer) => (
+                  <button
+                    key={customer.customerPhoneDigits}
+                    type="button"
+                    onClick={() => applyPanelCustomer(customer)}
+                    className="cursor-pointer rounded-full border border-[#B88E2F]/35 bg-[#B88E2F]/10 px-3 py-2 text-left text-[13px] font-medium text-gray-800 transition hover:border-[#B88E2F]/55 hover:bg-[#B88E2F]/16 active:scale-[0.98]"
+                  >
+                    <span className="block truncate">{customer.customerName}</span>
+                    <span className="mt-0.5 block text-[11px] font-normal text-gray-500">
+                      {customer.phoneDisplay}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="relative">
             <label htmlFor="pn-customerName" className="text-[16px] font-semibold text-gray-900">
               Nombre y apellido
             </label>
@@ -334,9 +450,41 @@ export function PanelNuevoTurnoClient() {
               autoComplete="name"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
+              onFocus={() => {
+                if (nameSuggestions.length > 0) setNameSuggestionsOpen(true);
+              }}
+              onBlur={() => {
+                window.setTimeout(() => setNameSuggestionsOpen(false), 150);
+              }}
               placeholder="Como figura en el turno"
               className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-[16px] text-gray-900 outline-none placeholder:text-gray-400 focus:border-[#B88E2F] focus:ring-2 focus:ring-[#B88E2F]/25"
             />
+            {nameSearchLoading ? (
+              <p className="mt-2 text-[13px] text-gray-500">Buscando clientas…</p>
+            ) : null}
+            {nameSuggestionsOpen && nameSuggestions.length > 0 ? (
+              <ul
+                role="listbox"
+                aria-label="Sugerencias de clientas"
+                className="absolute right-0 left-0 z-20 mt-1 max-h-52 overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 shadow-[0_12px_32px_rgba(0,0,0,0.12)]"
+              >
+                {nameSuggestions.map((customer) => (
+                  <li key={customer.customerPhoneDigits} role="option">
+                    <button
+                      type="button"
+                      className="flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#B88E2F]/8"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => applyPanelCustomer(customer)}
+                    >
+                      <span className="min-w-0 truncate text-[15px] font-medium text-gray-900">
+                        {customer.customerName}
+                      </span>
+                      <span className="shrink-0 text-[13px] text-gray-500">{customer.phoneDisplay}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
           <div>
             <label htmlFor="pn-customerPhone" className="text-[16px] font-semibold text-gray-900">
